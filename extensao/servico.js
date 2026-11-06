@@ -3,7 +3,7 @@
 // a extensão falar com eles sem CORS.
 importScripts('destinos.js')
 
-const { ENDERECOS_PADRAO, APPS, pedidoPara, resultadoDaResposta, acrescentar } = globalThis.Destinos
+const { ENDERECOS_PADRAO, APPS, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar } = globalThis.Destinos
 
 async function ajustes() {
   const salvos = await chrome.storage.local.get(['enderecos', 'baralho', 'tipo'])
@@ -25,12 +25,20 @@ async function chamar(endereco, caminho, { metodo = 'GET', corpo } = {}) {
   return { status: resposta.status, dados }
 }
 
+// Sem baralho escolhido no popup, os links vão para o "Inglês", se existir.
+async function comBaralhoPadrao(a) {
+  if (a.baralho) return a
+  const { status, dados } = await chamar(a.enderecos.flashcards, '/api/baralhos')
+  return { ...a, baralho: status === 200 ? baralhoPadrao(dados) : '' }
+}
+
 async function enviar({ app, url, titulo }) {
-  const a = await ajustes()
+  let a = await ajustes()
   const endereco = a.enderecos[app]
-  const pedido = pedidoPara(app, url, a)
   let resultado
   try {
+    if (app === 'flashcards') a = await comBaralhoPadrao(a)
+    const pedido = pedidoPara(app, url, a)
     const { status, dados } = await chamar(endereco, pedido.caminho, { metodo: 'POST', corpo: pedido.corpo })
     resultado = resultadoDaResposta(app, endereco, status, dados)
   } catch {

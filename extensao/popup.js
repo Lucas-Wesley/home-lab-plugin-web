@@ -49,7 +49,10 @@ async function carregarBaralhos(escolhido) {
     $('erro-baralhos').hidden = false
     return
   }
-  for (const b of r.baralhos) $('baralho').append(new Option(b.nome, b.id, false, b.id === escolhido))
+  // Sem escolha, o padrão: o "Inglês", se existir.
+  const marcado = escolhido || globalThis.Destinos.baralhoPadrao(r.baralhos) || 'novo'
+  for (const b of r.baralhos) $('baralho').append(new Option(b.nome, b.id))
+  $('baralho').value = marcado
 }
 
 // A aba da página: a ativa ou, nos testes, a de ?aba=.

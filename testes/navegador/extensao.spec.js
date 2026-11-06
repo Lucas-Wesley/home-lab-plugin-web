@@ -32,25 +32,52 @@ test('o YouTube troca de página sem recarregar: o botão aparece e some com o v
   await expect(page.locator('homelab-envio')).toHaveCount(0, { timeout: 3000 })
 })
 
-test('no Mairo Vergara, o botão manda a página ao Flashcards, no baralho escolhido', async ({ page, apps, extensao }) => {
-  // O baralho é escolhido uma vez, no popup.
+test('numa página com frases de exemplo, o botão manda ao Flashcards, no baralho escolhido', async ({ page, apps, extensao }) => {
+  // O baralho é escolhido uma vez, no popup; o padrão é o Inglês.
   await page.goto(`chrome-extension://${extensao}/popup.html`)
   await page.getByText('Ajustes').click()
-  await page.getByLabel('Baralho dos links do Mairo Vergara').selectOption({ label: 'Inglês' })
+  await expect(page.getByLabel('Baralho dos flashcards').locator('option:checked')).toHaveText('Inglês')
+  await page.getByLabel('Baralho dos flashcards').selectOption({ label: 'Bandeiras' })
   await page.getByLabel('Tipo dos cartões').selectOption('invertido')
 
   // A página inicial não tem frases de exemplo: sem botão.
-  await page.goto('https://www.mairovergara.com/')
+  await page.goto('https://blog.exemplo.com/')
   await page.waitForTimeout(1500)
   await expect(page.locator('homelab-envio')).toHaveCount(0)
 
-  await page.goto('https://www.mairovergara.com/shoot-up-o-que-significa/?utm_source=x')
+  await page.goto('https://blog.exemplo.com/shoot-up-o-que-significa/?utm_source=x')
   await expect(botao(page)).toHaveAttribute('aria-label', 'Fazer flashcards')
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('A IA está escolhendo os exemplos')
+  await expect(page.locator('homelab-envio .texto')).toHaveText('A IA está montando os exemplos')
   await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/geracao/7`)
   const pedido = apps.recebidos.find((r) => r.caminho === '/api/links')
-  expect(pedido.corpo).toEqual({ url: 'https://www.mairovergara.com/shoot-up-o-que-significa/', baralho_id: 'b1', tipo: 'invertido' })
+  expect(pedido.corpo).toEqual({ url: 'https://blog.exemplo.com/shoot-up-o-que-significa/', baralho_id: 'b2', tipo: 'invertido' })
+})
+
+test('sem baralho escolhido, os flashcards vão para o Inglês', async ({ page, apps }) => {
+  await page.goto('https://blog.exemplo.com/shoot-up-o-que-significa/')
+  await botao(page).click()
+  await expect(page.locator('homelab-envio .texto')).toHaveText('A IA está montando os exemplos')
+  expect(apps.recebidos.find((r) => r.caminho === '/api/links').corpo).toEqual({
+    url: 'https://blog.exemplo.com/shoot-up-o-que-significa/',
+    baralho_id: 'b1',
+    tipo: 'basico',
+  })
+})
+
+test('qualquer página vai ao Flashcards pelo popup, mesmo sem botão na página', async ({ page, context, apps, extensao }) => {
+  await page.goto('https://noticias.exemplo.com/break-the-ice?utm_medium=x')
+  await page.waitForTimeout(1500)
+  await expect(page.locator('homelab-envio')).toHaveCount(0)
+
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#aqui-titulo')).toHaveText('Break the ice')
+  await popup.getByRole('button', { name: 'Fazer flashcards' }).click()
+
+  await expect(page.locator('homelab-envio .texto')).toHaveText('A IA está montando os exemplos')
+  expect(apps.recebidos.find((r) => r.caminho === '/api/links').corpo.url).toBe('https://noticias.exemplo.com/break-the-ice')
 })
 
 test('o popup mostra o histórico, inclusive o que falhou', async ({ page, context, extensao }) => {
@@ -63,7 +90,7 @@ test('o popup mostra o histórico, inclusive o que falhou', async ({ page, conte
     const { enderecos } = await chrome.storage.local.get('enderecos')
     await chrome.storage.local.set({ enderecos: { ...enderecos, flashcards: 'http://localhost:9' } })
   })
-  await page.goto('https://www.mairovergara.com/shoot-up-o-que-significa/')
+  await page.goto('https://blog.exemplo.com/shoot-up-o-que-significa/')
   await botao(page).click()
   await expect(page.locator('homelab-envio .texto')).toHaveText('Sem conexão com o Flashcards: só funciona na rede de casa.')
 
@@ -103,7 +130,7 @@ test('o nome aparece ao abrir o vídeo e o popup também envia', async ({ page, 
   await expect(popup.locator('#aqui')).toBeHidden()
 })
 
-test('fora de vídeo e do Mairo, o popup não oferece envio', async ({ context, extensao }) => {
+test('no YouTube fora de um vídeo, o popup não oferece envio', async ({ context, extensao }) => {
   const pagina = await context.newPage()
   await pagina.goto('https://www.youtube.com/')
   const aba = await ultimaAba(context)

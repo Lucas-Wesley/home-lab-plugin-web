@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.1.0",
-  "description": "Manda o vídeo do YouTube ao Acervo e a página do Mairo Vergara ao Flashcards, com um botão discreto na página.",
+  "version": "1.2.0",
+  "description": "Manda o vídeo do YouTube ao Acervo e as frases de exemplo de uma página ao Flashcards, com um botão discreto na página.",
   "icons": { "16": "icones/16.png", "32": "icones/32.png", "48": "icones/48.png", "128": "icones/128.png" },
   "action": { "default_title": "Homelab", "default_popup": "popup.html", "default_icon": { "16": "icones/16.png", "32": "icones/32.png" } },
   "background": { "service_worker": "servico.js" },
@@ -10,7 +10,8 @@
   "host_permissions": ["https://192.168.1.20/*"],
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*", "https://www.mairovergara.com/*", "https://mairovergara.com/*"],
+      "matches": ["https://*/*", "http://*/*"],
+      "exclude_matches": ["https://192.168.1.20/*"],
       "js": ["destinos.js", "pagina.js"],
       "run_at": "document_idle"
     }

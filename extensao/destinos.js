@@ -1,4 +1,4 @@
-// Para onde vai cada página: as regras dos sites conhecidos, usadas pela página (pagina.js), pelo
+// Para onde vai cada página: as regras, usadas pela página (pagina.js), pelo
 // serviço (servico.js) e pelos testes. Script comum, sem módulos: o Chrome carrega este arquivo
 // antes do pagina.js, e o serviço o importa com importScripts. Fica dentro de uma função para os nomes
 // daqui não colidirem com os de quem o usa: só globalThis.Destinos sai.
@@ -34,30 +34,41 @@
     return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : ''
   }
 
-  function ehMairoVergara(endereco) {
-    try {
-      return ['mairovergara.com', 'www.mairovergara.com'].includes(new URL(endereco).hostname)
-    } catch {
-      return false
-    }
+  // linkLimpo tira da URL o que só serve para rastrear (#…, utm_…, fbclid, gclid).
+  function linkLimpo(u) {
+    const limpo = new URL(u.href)
+    limpo.hash = ''
+    for (const k of [...limpo.searchParams.keys()]) if (/^(utm_|fbclid$|gclid$)/.test(k)) limpo.searchParams.delete(k)
+    return limpo.href
   }
 
-  // destinoDaPagina diz se a página tem botão e para qual app. temExemplos: a página do Mairo
-  // Vergara tem frases de exemplo com áudio (só essas viram cartões).
+  // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai ao Acervo;
+  // qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
   function destinoDaPagina(endereco, temExemplos) {
     const video = videoDoYouTube(endereco)
     if (video) return { app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }
-    if (ehMairoVergara(endereco) && temExemplos) {
-      const u = new URL(endereco)
-      return { app: 'flashcards', url: `${u.origin}${u.pathname}` }
+    let u
+    try {
+      u = new URL(endereco)
+    } catch {
+      return null
     }
-    return null
+    if (!temExemplos || (u.protocol !== 'https:' && u.protocol !== 'http:') || /(^|\.)youtube\.com$/.test(u.hostname)) return null
+    return { app: 'flashcards', url: linkLimpo(u) }
   }
 
-  // O pedido que cada app recebe e onde abrir o resultado.
+  // O baralho padrão dos links: o "Inglês", se existir.
+  const semAcento = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+  function baralhoPadrao(baralhos) {
+    return baralhos.find((b) => semAcento(b.nome) === 'ingles')?.id ?? ''
+  }
+
+  // O pedido que cada app recebe e onde abrir o resultado. ajustes.baralho: o id do baralho, ou
+  // "novo" (um baralho novo para cada página).
   function pedidoPara(app, url, ajustes) {
     if (app === 'acervo') return { caminho: '/api/referencias', corpo: { url } }
-    return { caminho: '/api/links', corpo: { url, baralho_id: ajustes.baralho || '', tipo: ajustes.tipo || 'basico' } }
+    const baralho = ajustes.baralho === 'novo' ? '' : ajustes.baralho || ''
+    return { caminho: '/api/links', corpo: { url, baralho_id: baralho, tipo: ajustes.tipo || 'basico' } }
   }
 
   // resultadoDaResposta traduz a resposta do app no que a página e o histórico mostram.
@@ -70,7 +81,7 @@
       const pronta = dados.estado === 'em_revisao'
       return {
         estado: 'enviado',
-        mensagem: pronta ? 'Cartões prontos para revisar' : 'A IA está escolhendo os exemplos',
+        mensagem: pronta ? 'Cartões prontos para revisar' : 'A IA está montando os exemplos',
         abrir: `${base}/#/geracao/${dados.id}`,
       }
     } else if (status === 409) {
@@ -84,5 +95,5 @@
     return [envio, ...historico].slice(0, HISTORICO_MAXIMO)
   }
 
-  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, ehMairoVergara, destinoDaPagina, pedidoPara, resultadoDaResposta, acrescentar }
+  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, destinoDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
 })()

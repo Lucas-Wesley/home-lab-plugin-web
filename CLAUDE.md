@@ -1,7 +1,7 @@
 # Homelab no Chrome
 
 Extensão do Chrome (Manifest V3) do **ecossistema de apps pessoais do Lucas**: um botão discreto
-nas páginas que manda o link ao app certo (YouTube → Acervo, Mairo Vergara → Flashcards). É um
+nas páginas que manda o link ao app certo (vídeo do YouTube → Acervo, página com frases de exemplo → Flashcards). É um
 **cliente** dos apps, sem banco nem servidor próprio.
 
 **Comece lendo:** [`docs/DECISOES.md`](docs/DECISOES.md).
@@ -14,8 +14,8 @@ Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley
 ## Regras e convenções (IMPORTANTE)
 - **Sem build e sem dependências em tempo de execução.** O que está em `extensao/` é o que o Chrome
   carrega; `node_modules` é só para os testes.
-- **Site novo = regra nova em `extensao/destinos.js`**, com teste em `testes/destinos.test.js`, e
-  o site em `content_scripts.matches` do `manifest.json`. Só depois de o Lucas pedir.
+- **Nada específico de um site** fora o YouTube (E9): as regras ficam em `extensao/destinos.js`, com teste em
+  `testes/destinos.test.js`; o script da página roda em todos os sites, então ele precisa ser leve.
 - **Quem chama os apps é o serviço** (`servico.js`), nunca a página: a permissão de
   `https://192.168.1.20/*` vale só para a extensão, sem CORS.
 - **Discreta, mas à vista:** um círculo de 36 px no canto, que mostra o texto nos 5 primeiros

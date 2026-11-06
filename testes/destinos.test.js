@@ -28,13 +28,20 @@ test('cada página vai para o seu app, com o link limpo', () => {
     app: 'acervo',
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   })
-  assert.deepEqual(json(D.destinoDaPagina('https://www.mairovergara.com/shoot-up-o-que-significa/?utm_source=x#audio', true)), {
+  assert.deepEqual(json(D.destinoDaPagina('https://blog.exemplo.com/shoot-up-o-que-significa/?utm_source=x&p=12&fbclid=y#audio', true)), {
     app: 'flashcards',
-    url: 'https://www.mairovergara.com/shoot-up-o-que-significa/',
+    url: 'https://blog.exemplo.com/shoot-up-o-que-significa/?p=12',
   })
-  // Página do Mairo sem frases de exemplo (a inicial, uma lista de posts): sem botão.
-  assert.equal(D.destinoDaPagina('https://www.mairovergara.com/', false), null)
-  assert.equal(D.destinoDaPagina('https://www.google.com/', true), null)
+  // Página sem frases de exemplo (a inicial de um blog, uma lista de posts): sem botão na página.
+  assert.equal(D.destinoDaPagina('https://blog.exemplo.com/', false), null)
+  // O YouTube fora de um vídeo não vai a lugar nenhum.
+  assert.equal(D.destinoDaPagina('https://www.youtube.com/', true), null)
+  assert.equal(D.destinoDaPagina('chrome://extensions', true), null)
+})
+
+test('o baralho padrão é o Inglês', () => {
+  assert.equal(D.baralhoPadrao([{ id: 'b2', nome: 'Bandeiras' }, { id: 'b1', nome: ' inglês ' }]), 'b1')
+  assert.equal(D.baralhoPadrao([{ id: 'b2', nome: 'Bandeiras' }]), '')
 })
 
 test('monta o pedido de cada app', () => {
@@ -43,6 +50,7 @@ test('monta o pedido de cada app', () => {
   assert.equal(flash.caminho, '/api/links')
   assert.deepEqual(json(flash.corpo), { url: 'u', baralho_id: 'b1', tipo: 'invertido' })
   assert.deepEqual(json(D.pedidoPara('flashcards', 'u', {}).corpo), { url: 'u', baralho_id: '', tipo: 'basico' })
+  assert.equal(D.pedidoPara('flashcards', 'u', { baralho: 'novo' }).corpo.baralho_id, '')
 })
 
 test('traduz as respostas dos apps', () => {
@@ -57,7 +65,7 @@ test('traduz as respostas dos apps', () => {
   assert.equal(D.resultadoDaResposta('acervo', acervo, 502, null).mensagem, 'O Acervo respondeu 502')
 
   const flash = 'https://192.168.1.20:8445'
-  assert.equal(D.resultadoDaResposta('flashcards', flash, 201, { id: 7, estado: 'na_fila' }).mensagem, 'A IA está escolhendo os exemplos')
+  assert.equal(D.resultadoDaResposta('flashcards', flash, 201, { id: 7, estado: 'na_fila' }).mensagem, 'A IA está montando os exemplos')
   assert.equal(D.resultadoDaResposta('flashcards', flash, 201, { id: 7, estado: 'em_revisao' }).abrir, 'https://192.168.1.20:8445/#/geracao/7')
   assert.deepEqual(json(D.resultadoDaResposta('flashcards', flash, 409, { erro: 'Todas as frases deste link já estão no baralho.' })), {
     estado: 'repetido',

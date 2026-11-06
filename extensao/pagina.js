@@ -1,5 +1,5 @@
-// O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página do Mairo Vergara com
-// frases de exemplo, manda ao Flashcards. Um círculo pequeno no canto de baixo, que mostra o nome
+// O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página com frases de exemplo
+// com áudio, de qualquer site, manda ao Flashcards. Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
 ;(() => {
@@ -106,8 +106,15 @@
     host.toggleAttribute('data-claro', ytClaro)
   }
 
+  // A página mostra frases de exemplo com áudio do jeito comum: um parágrafo com a frase em negrito,
+  // uma quebra de linha e a tradução, e algum áudio na página. Nas outras, o botão fica só no popup.
+  function temExemplos() {
+    if (!document.querySelector('audio[src], audio source[src]')) return false
+    return [...document.querySelectorAll('p')].some((p) => p.querySelector('strong, b') && p.querySelector('br'))
+  }
+
   function atualizar() {
-    const novo = destinoDaPagina(location.href, !!document.querySelector('figure.wp-block-audio audio, figure.wp-block-audio source'))
+    const novo = destinoDaPagina(location.href, temExemplos())
     if (!novo) {
       host?.remove()
       host = null
@@ -129,11 +136,27 @@
 
   // O popup do ícone pergunta o que esta página manda e pede para enviar.
   chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
+    // Sem botão na página, qualquer página ainda pode ir ao Flashcards pelo popup.
+    const doPopup = () => (host && destino ? destino : destinoDaPagina(location.href, true))
     if (mensagem?.tipo === 'destino') {
-      responder(host && destino ? { app: destino.app, acao: APPS[destino.app].acao, titulo: tituloDaPagina() } : null)
+      const d = doPopup()
+      if (!d) responder(null)
+      else {
+        const antes = destino
+        destino = d
+        responder({ app: d.app, acao: APPS[d.app].acao, titulo: tituloDaPagina() })
+        destino = antes
+      }
       return false
     }
     if (mensagem?.tipo === 'enviarDaqui') {
+      // O botão aparece (se ainda não estava) para mostrar o resultado.
+      if (!host || !host.isConnected) {
+        destino = doPopup()
+        atual = destino.url
+        montar()
+        escuro()
+      }
       enviar().then(() => responder(true))
       return true
     }
@@ -147,8 +170,11 @@
   // O YouTube troca de vídeo sem recarregar a página.
   window.addEventListener('yt-navigate-finish', atualizar)
   window.addEventListener('popstate', atualizar)
+  let vista = location.href
   setInterval(() => {
-    if ((host ? atual : '') !== (destinoDaPagina(location.href, true)?.url ?? '') || (host && !host.isConnected)) atualizar()
+    if (location.href === vista && (!host || host.isConnected)) return
+    vista = location.href
+    atualizar()
   }, 1000)
   atualizar()
 })()
