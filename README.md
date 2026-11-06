@@ -27,8 +27,9 @@ As abas abertas antes disso precisam ser recarregadas.
 
 ## Usar
 
-- Num vídeo do YouTube, passe o mouse no círculo do canto de baixo à direita: **Mandar ao
-  Acervo**. Depois de enviar, ele mostra o resultado ("Na fila do Acervo", "Já está no Acervo") e
+- Num vídeo do YouTube, o círculo do canto de baixo à direita mostra **Mandar ao Acervo** nos
+  primeiros segundos (depois, passe o mouse nele). O ícone da extensão também tem esse botão, em
+  **Nesta página**. Depois de enviar, ele mostra o resultado ("Na fila do Acervo", "Já está no Acervo") e
   o link **Abrir**.
 - Numa página do Mairo Vergara com frases de exemplo: **Fazer flashcards**. A IA escolhe as 3
   frases mais didáticas; **Abrir** leva à proposta no Flashcards.

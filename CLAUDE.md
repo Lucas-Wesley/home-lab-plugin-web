@@ -18,8 +18,8 @@ Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley
   o site em `content_scripts.matches` do `manifest.json`. Só depois de o Lucas pedir.
 - **Quem chama os apps é o serviço** (`servico.js`), nunca a página: a permissão de
   `https://192.168.1.20/*` vale só para a extensão, sem CORS.
-- **Discreta:** um círculo de 36 px no canto, que só mostra o texto ao passar o mouse ou depois de
-  enviar. Nada de painéis abertos sozinhos.
+- **Discreta, mas à vista:** um círculo de 36 px no canto, que mostra o texto nos 5 primeiros
+  segundos, ao passar o mouse e depois de enviar (E8). Nada de painéis abertos sozinhos.
 - Guardar só o histórico (50 últimos) e os ajustes, em `chrome.storage.local`.
 - Rodar `npm test` antes de publicar.
 - **Commits:** autoria do Lucas; **sem linha `Co-Authored-By`**.

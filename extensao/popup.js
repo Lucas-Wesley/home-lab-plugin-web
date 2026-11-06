@@ -52,7 +52,33 @@ async function carregarBaralhos(escolhido) {
   for (const b of r.baralhos) $('baralho').append(new Option(b.nome, b.id, false, b.id === escolhido))
 }
 
+// A aba da página: a ativa ou, nos testes, a de ?aba=.
+async function abaDaPagina() {
+  const pedida = Number(new URLSearchParams(location.search).get('aba'))
+  if (pedida) return pedida
+  const [aba] = await chrome.tabs.query({ active: true, currentWindow: true })
+  return aba?.id
+}
+
+// Se a página aberta tem botão, o popup também envia (pela página, que mostra o resultado).
+async function mostrarAqui() {
+  const aba = await abaDaPagina()
+  if (!aba) return
+  const destino = await chrome.tabs.sendMessage(aba, { tipo: 'destino' }).catch(() => null)
+  if (!destino) return
+  $('aqui-titulo').textContent = destino.titulo
+  $('enviar').textContent = destino.acao
+  $('aqui').hidden = false
+  $('enviar').addEventListener('click', async () => {
+    $('enviar').disabled = true
+    $('enviar').textContent = 'Enviando…'
+    await chrome.tabs.sendMessage(aba, { tipo: 'enviarDaqui' }).catch(() => null)
+    $('aqui').hidden = true
+  })
+}
+
 async function iniciar() {
+  mostrarAqui()
   const s = await chrome.storage.local.get(['historico', 'baralho', 'tipo', 'enderecos'])
   mostrarHistorico(s.historico || [])
   $('tipo').value = s.tipo || 'basico'

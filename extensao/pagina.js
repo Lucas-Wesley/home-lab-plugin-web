@@ -1,6 +1,7 @@
 // O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página do Mairo Vergara com
 // frases de exemplo, manda ao Flashcards. Um círculo pequeno no canto de baixo, que mostra o nome
-// ao passar o mouse e o resultado depois de enviar. Fica num Shadow DOM, longe do CSS do site.
+// ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
+// Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
 ;(() => {
   const { APPS, destinoDaPagina } = globalThis.Destinos
 
@@ -20,15 +21,16 @@
     @media (prefers-color-scheme: dark) { :host(:not([data-claro])) { --fundo: rgba(28, 28, 27, 0.8); --texto: #e7e5e0;
       --suave: #9d9991; --linha: rgba(255, 255, 255, 0.1); --azul: #8eb1d6; --terracota: #e3967c; } }
     .caixa { display: flex; align-items: center; height: 36px; padding: 0; border: 1px solid var(--linha); border-radius: 999px;
-      background: var(--fundo); color: var(--suave); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
-      backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); opacity: 0.72;
-      transition: opacity 0.15s ease, color 0.15s ease; }
-    .caixa:hover, .caixa[data-estado]:not([data-estado="parado"]) { opacity: 1; color: var(--texto); }
+      background: var(--fundo); color: var(--texto); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); }
+    :host([data-escuro]) .caixa { border-color: rgba(255, 255, 255, 0.18); }
     button { all: unset; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 9px; border-radius: 999px; cursor: pointer; color: inherit; }
     button:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
     svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     .texto { max-width: 0; overflow: hidden; white-space: nowrap; transition: max-width 0.2s ease; }
-    .caixa:hover .texto, .caixa:focus-within .texto, .caixa:not([data-estado="parado"]) .texto { max-width: 260px; }
+    .caixa:hover .texto, .caixa:focus-within .texto, .caixa[data-apresentar] .texto,
+    .caixa:not([data-estado="parado"]) .texto { max-width: 260px; }
+    .caixa[data-apresentar] button { padding-right: 14px; }
     .caixa[data-estado="feito"] svg { stroke: var(--azul); }
     .caixa.caixa[data-estado="erro"] { color: var(--terracota); }
     .caixa[data-estado="enviando"] svg { animation: pulsar 1s ease-in-out infinite; }
@@ -43,6 +45,7 @@
   let atual = '' // a URL da página com o botão de agora
   let destino = null
   let recolher = 0
+  let apresentar = 0
 
   function montar() {
     host = document.createElement('homelab-envio')
@@ -83,6 +86,7 @@
   }
 
   async function enviar() {
+    if (host) delete host.shadowRoot.querySelector('.caixa').dataset.apresentar
     if (!destino || host.shadowRoot.querySelector('.caixa').dataset.estado === 'enviando') return
     mostrar('enviando', 'Enviando…')
     let r
@@ -116,7 +120,25 @@
     if (!host || !host.isConnected) montar()
     escuro()
     mostrar('parado', APPS[novo.app].acao)
+    // O nome fica à vista nos primeiros segundos, para o botão ser notado; depois, só o ícone.
+    const caixa = host.shadowRoot.querySelector('.caixa')
+    caixa.dataset.apresentar = ''
+    clearTimeout(apresentar)
+    apresentar = setTimeout(() => delete caixa.dataset.apresentar, 5000)
   }
+
+  // O popup do ícone pergunta o que esta página manda e pede para enviar.
+  chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
+    if (mensagem?.tipo === 'destino') {
+      responder(host && destino ? { app: destino.app, acao: APPS[destino.app].acao, titulo: tituloDaPagina() } : null)
+      return false
+    }
+    if (mensagem?.tipo === 'enviarDaqui') {
+      enviar().then(() => responder(true))
+      return true
+    }
+    return false
+  })
 
   // No tela cheia, o botão some.
   document.addEventListener('fullscreenchange', () => {
