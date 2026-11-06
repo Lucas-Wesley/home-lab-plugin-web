@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Homelab</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Homelab</h1>
+      <p class="suave">Num vídeo do YouTube ou numa página do Mairo Vergara, o botão no canto da página manda o link ao app.</p>
+    </header>
+
+    <section>
+      <h2>Enviados</h2>
+      <ul id="historico" class="lista"></ul>
+      <p id="vazio" class="suave" hidden>Nada enviado ainda.</p>
+    </section>
+
+    <details>
+      <summary>Ajustes</summary>
+      <label>
+        <span>Baralho dos links do Mairo Vergara</span>
+        <select id="baralho"><option value="">Um baralho novo para cada página</option></select>
+      </label>
+      <p id="erro-baralhos" class="suave erro" hidden></p>
+      <label>
+        <span>Tipo dos cartões</span>
+        <select id="tipo">
+          <option value="basico">Inglês → português</option>
+          <option value="invertido">Nos dois sentidos</option>
+        </select>
+      </label>
+      <label>
+        <span>Endereço do Acervo</span>
+        <input id="acervo" type="url" spellcheck="false" />
+      </label>
+      <label>
+        <span>Endereço do Flashcards</span>
+        <input id="flashcards" type="url" spellcheck="false" />
+      </label>
+      <button id="limpar" type="button">Limpar o histórico</button>
+    </details>
+
+    <script src="destinos.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
