@@ -174,8 +174,21 @@ button {
   white-space: nowrap;
 }
 
+.acoes {
+  display: flex;
+  gap: 8px;
+}
+
+.acoes button {
+  flex: 1;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .principal {
-  width: 100%;
   border-color: transparent;
   background: var(--texto);
   color: var(--fundo);

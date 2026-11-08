@@ -39,6 +39,19 @@ test('cada página vai para o seu app, com o link limpo', () => {
   assert.equal(D.destinoDaPagina('chrome://extensions', true), null)
 })
 
+test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, só ao Acervo (E10)', () => {
+  assert.deepEqual(json(D.acoesDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=9')), [
+    { app: 'acervo', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  ])
+  assert.deepEqual(json(D.acoesDaPagina('https://blog.exemplo.com/historia-do-cafe/?utm_source=x#topo')), [
+    { app: 'acervo', url: 'https://blog.exemplo.com/historia-do-cafe/' },
+    { app: 'flashcards', url: 'https://blog.exemplo.com/historia-do-cafe/' },
+  ])
+  assert.deepEqual(json(D.acoesDaPagina('https://www.youtube.com/')), [])
+  assert.deepEqual(json(D.acoesDaPagina('chrome://extensions')), [])
+  assert.deepEqual(json(D.acoesDaPagina('não é link')), [])
+})
+
 test('o baralho padrão é o Inglês', () => {
   assert.equal(D.baralhoPadrao([{ id: 'b2', nome: 'Bandeiras' }, { id: 'b1', nome: ' inglês ' }]), 'b1')
   assert.equal(D.baralhoPadrao([{ id: 'b2', nome: 'Bandeiras' }]), '')

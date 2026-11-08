@@ -80,6 +80,19 @@ test('qualquer página vai ao Flashcards pelo popup, mesmo sem botão na página
   expect(apps.recebidos.find((r) => r.caminho === '/api/links').corpo.url).toBe('https://noticias.exemplo.com/break-the-ice')
 })
 
+test('qualquer página vai ao Acervo pelo popup, como artigo (E10)', async ({ page, context, apps, extensao }) => {
+  await page.goto('https://noticias.exemplo.com/break-the-ice?utm_medium=x')
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#acoes button')).toHaveText(['Mandar ao Acervo', 'Fazer flashcards'])
+  await popup.getByRole('button', { name: 'Mandar ao Acervo' }).click()
+
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Na fila do Acervo')
+  expect(apps.recebidos.find((r) => r.caminho === '/api/referencias').corpo).toEqual({ url: 'https://noticias.exemplo.com/break-the-ice' })
+  await expect(popup.locator('#historico li').first()).toContainText('Acervo')
+})
+
 test('o popup mostra o histórico, inclusive o que falhou', async ({ page, context, extensao }) => {
   await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
   await botao(page).click()

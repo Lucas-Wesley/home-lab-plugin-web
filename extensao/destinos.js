@@ -57,6 +57,26 @@
     return { app: 'flashcards', url: linkLimpo(u) }
   }
 
+  // acoesDaPagina: para onde a página (ou um link) pode ir, pelo popup ou pelo menu do botão direito
+  // (E10). O vídeo do YouTube vai ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
+  // Flashcards. O YouTube fora de um vídeo e o que não é http(s) não vão a lugar nenhum.
+  function acoesDaPagina(endereco) {
+    const video = videoDoYouTube(endereco)
+    if (video) return [{ app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }]
+    let u
+    try {
+      u = new URL(endereco)
+    } catch {
+      return []
+    }
+    if ((u.protocol !== 'https:' && u.protocol !== 'http:') || /(^|\.)youtube\.com$/.test(u.hostname)) return []
+    const url = linkLimpo(u)
+    return [
+      { app: 'acervo', url },
+      { app: 'flashcards', url },
+    ]
+  }
+
   // O baralho padrão dos links: o "Inglês", se existir.
   const semAcento = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
   function baralhoPadrao(baralhos) {
@@ -95,5 +115,5 @@
     return [envio, ...historico].slice(0, HISTORICO_MAXIMO)
   }
 
-  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, destinoDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
+  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, destinoDaPagina, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
 })()

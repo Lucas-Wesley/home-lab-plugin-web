@@ -1,6 +1,6 @@
 # Decisões
 
-Estado em 06/11/2026: primeira versão feita e testada. Instalada pelo Lucas com "Carregar sem
+Estado em 08/11/2026: versão 1.3.0 feita e testada. Instalada pelo Lucas com "Carregar sem
 compactação" (não está na Chrome Web Store).
 
 | # | Decisão | Por quê |
@@ -14,6 +14,7 @@ compactação" (não está na Chrome Web Store).
 | E7 | **Baralho dos flashcards:** escolhido no popup (lista do `GET /api/baralhos` do Flashcards). O padrão, desde E9, é o baralho **Inglês**, se existir; "um baralho novo para cada página" é uma opção | O Flashcards lembra o último baralho no navegador dele, que a extensão não enxerga. E a proposta ainda pode ir para outro baralho na revisão, no Flashcards. |
 | E8 | **Mais à vista (06/11/2026):** o círculo fica opaco, com o ícone na cor do texto; ao abrir a página, mostra o nome da ação por 5 s e recolhe. O **popup também envia**: se a aba aberta tem botão, ele mostra "Nesta página" com o título e a ação, e pede à página para enviar (o resultado aparece no botão e no histórico) | No primeiro uso o Lucas não achou o botão (apagado a 72% sobre o YouTube escuro) e procurou no ícone da extensão. O popup pergunta à página por mensagem, então não precisa da permissão "tabs". |
 | E9 | **Qualquer site (06/11/2026, versão 1.2.0).** Nada específico de um site: o script da página roda em todos os sites (`https://*/*` e `http://*/*`, menos o homelab) e põe o botão de flashcards onde há um parágrafo com negrito e quebra de linha (frase e tradução) e algum `<audio>`. Em qualquer outra página (fora do YouTube), o **popup** oferece "Fazer flashcards", e o Flashcards lê a página ou a IA tira os exemplos do texto (F31 do Flashcards). O link vai sem `#`, `utm_…`, `fbclid` e `gclid` | Pedido do Lucas: o link pode ser de qualquer lugar. O botão na página continua só onde há exemplos, para não aparecer em todo site; o popup cobre o resto. |
+| E10 | **Qualquer página ao Acervo ou ao Flashcards (08/11/2026, versão 1.3.0).** O popup mostra um botão por app: num vídeo do YouTube, **Mandar ao Acervo**; em qualquer outra página, **Mandar ao Acervo** (vira uma Referência do tipo artigo, D34 do Acervo) e **Fazer flashcards**. Com o **botão direito** num link ou na página, as mesmas duas ações, sem abrir o link (permissão `contextMenus`); o resultado vai para o histórico e aparece por 5 s no ícone da extensão (✓ ou !). O círculo na página continua só nos vídeos e nas páginas com frases de exemplo. O título vem do `<h1>` (fora do YouTube) | Pedido do Lucas: qualquer link pode virar Referência no Acervo ou flashcards. O botão direito cobre o link que ele ainda não abriu; o círculo em toda página deixaria de ser discreto. |
 
 ## Próximos passos
 

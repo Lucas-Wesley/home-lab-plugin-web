@@ -1,9 +1,9 @@
 // O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página com frases de exemplo
-// com áudio, de qualquer site, manda ao Flashcards. Um círculo pequeno no canto de baixo, que mostra o nome
+// com áudio, de qualquer site, manda ao Flashcards. Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
 ;(() => {
-  const { APPS, destinoDaPagina } = globalThis.Destinos
+  const { APPS, acoesDaPagina, destinoDaPagina } = globalThis.Destinos
 
   const ICONES = {
     acervo: '<path d="M4 5.5A1.5 1.5 0 015.5 4H10v16H5.5A1.5 1.5 0 014 18.5zM10 4h4v16h-4zM14.5 5l4-1 2.5 15-4 1z"/>',
@@ -81,7 +81,7 @@
   }
 
   function tituloDaPagina() {
-    if (destino.app === 'flashcards') return document.querySelector('h1')?.textContent.trim() || document.title
+    if (!location.hostname.endsWith('youtube.com')) return document.querySelector('h1')?.textContent.trim() || document.title
     return document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '')
   }
 
@@ -134,26 +134,30 @@
     apresentar = setTimeout(() => delete caixa.dataset.apresentar, 5000)
   }
 
-  // O popup do ícone pergunta o que esta página manda e pede para enviar.
+  // O popup do ícone pergunta o que esta página pode fazer (E10: qualquer página vai ao Acervo ou
+  // ao Flashcards) e pede para enviar a um dos apps; o resultado aparece no botão.
   chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
-    // Sem botão na página, qualquer página ainda pode ir ao Flashcards pelo popup.
-    const doPopup = () => (host && destino ? destino : destinoDaPagina(location.href, true))
     if (mensagem?.tipo === 'destino') {
-      const d = doPopup()
-      if (!d) responder(null)
+      const acoes = acoesDaPagina(location.href)
+      if (!acoes.length) responder(null)
       else {
         const antes = destino
-        destino = d
-        responder({ app: d.app, acao: APPS[d.app].acao, titulo: tituloDaPagina() })
+        destino = acoes[0]
+        responder({ titulo: tituloDaPagina(), acoes: acoes.map((a) => ({ app: a.app, acao: APPS[a.app].acao })) })
         destino = antes
       }
       return false
     }
     if (mensagem?.tipo === 'enviarDaqui') {
+      const escolhida = acoesDaPagina(location.href).find((a) => a.app === mensagem.app)
+      if (!escolhida) {
+        responder(false)
+        return false
+      }
+      destino = escolhida
+      atual = escolhida.url
       // O botão aparece (se ainda não estava) para mostrar o resultado.
       if (!host || !host.isConnected) {
-        destino = doPopup()
-        atual = destino.url
         montar()
         escuro()
       }

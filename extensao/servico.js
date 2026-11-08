@@ -3,7 +3,7 @@
 // a extensão falar com eles sem CORS.
 importScripts('destinos.js')
 
-const { ENDERECOS_PADRAO, APPS, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar } = globalThis.Destinos
+const { ENDERECOS_PADRAO, APPS, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar } = globalThis.Destinos
 
 async function ajustes() {
   const salvos = await chrome.storage.local.get(['enderecos', 'baralho', 'tipo'])
@@ -50,6 +50,42 @@ async function enviar({ app, url, titulo }) {
   })
   return resultado
 }
+
+// Botão direito num link ou na página (E10): manda sem abrir o link. O resultado fica no histórico e,
+// por alguns segundos, no ícone da extensão (✓ ou !).
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => {
+    for (const app of ['acervo', 'flashcards']) {
+      chrome.contextMenus.create({ id: app, title: APPS[app].acao, contexts: ['link', 'page'], documentUrlPatterns: ['https://*/*', 'http://*/*'] })
+    }
+  })
+})
+
+let limparSinal = 0
+function sinalizar(resultado) {
+  const erro = resultado.estado === 'erro'
+  chrome.action.setBadgeBackgroundColor({ color: erro ? '#b4553a' : '#33608c' })
+  chrome.action.setBadgeText({ text: erro ? '!' : '✓' })
+  chrome.action.setTitle({ title: `Homelab: ${resultado.mensagem}` })
+  clearTimeout(limparSinal)
+  limparSinal = setTimeout(() => {
+    chrome.action.setBadgeText({ text: '' })
+    chrome.action.setTitle({ title: 'Homelab' })
+  }, 5000)
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, aba) => {
+  const link = info.linkUrl || info.pageUrl
+  const acao = acoesDaPagina(link).find((a) => a.app === info.menuItemId)
+  if (!acao) {
+    const mensagem = info.menuItemId === 'flashcards' ? 'Vídeo do YouTube vai só ao Acervo.' : 'Este link não vai a nenhum app.'
+    sinalizar({ estado: 'erro', mensagem })
+    return
+  }
+  // Num link, o título é o texto dele (quando o Chrome dá) ou o próprio endereço.
+  const titulo = info.linkUrl ? info.selectionText || info.linkUrl : aba?.title
+  sinalizar(await enviar({ app: acao.app, url: acao.url, titulo }))
+})
 
 chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
   if (mensagem?.tipo === 'enviar') {

@@ -63,21 +63,28 @@ async function abaDaPagina() {
   return aba?.id
 }
 
-// Se a página aberta tem botão, o popup também envia (pela página, que mostra o resultado).
+// O que a página aberta pode fazer: um botão por app (E10). Quem envia é a página, que mostra o resultado.
 async function mostrarAqui() {
   const aba = await abaDaPagina()
   if (!aba) return
   const destino = await chrome.tabs.sendMessage(aba, { tipo: 'destino' }).catch(() => null)
   if (!destino) return
   $('aqui-titulo').textContent = destino.titulo
-  $('enviar').textContent = destino.acao
-  $('aqui').hidden = false
-  $('enviar').addEventListener('click', async () => {
-    $('enviar').disabled = true
-    $('enviar').textContent = 'Enviando…'
-    await chrome.tabs.sendMessage(aba, { tipo: 'enviarDaqui' }).catch(() => null)
-    $('aqui').hidden = true
+  $('acoes').replaceChildren()
+  destino.acoes.forEach(({ app, acao }, i) => {
+    const botao = document.createElement('button')
+    botao.type = 'button'
+    botao.textContent = acao
+    if (i === 0) botao.className = 'principal'
+    botao.addEventListener('click', async () => {
+      for (const b of $('acoes').querySelectorAll('button')) b.disabled = true
+      botao.textContent = 'Enviando…'
+      await chrome.tabs.sendMessage(aba, { tipo: 'enviarDaqui', app }).catch(() => null)
+      $('aqui').hidden = true
+    })
+    $('acoes').append(botao)
   })
+  $('aqui').hidden = false
 }
 
 async function iniciar() {
