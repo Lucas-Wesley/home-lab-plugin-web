@@ -7,7 +7,7 @@
 
   const ICONES = {
     acervo: '<path d="M4 5.5A1.5 1.5 0 015.5 4H10v16H5.5A1.5 1.5 0 014 18.5zM10 4h4v16h-4zM14.5 5l4-1 2.5 15-4 1z"/>',
-    flashcards: '<rect x="8" y="4" width="12" height="14" rx="1.5"/><path d="M5 7.5v11A1.5 1.5 0 006.5 20H16"/>',
+    flashcards: '<path d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zM5 12h14"/><path d="M10.4 7.3a1.7 1.7 0 013.2.5c0 1-1.6 1.2-1.6 2M8.5 15.3h7M8.5 17.3h4"/>',
     feito: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     erro: '<path d="M12 7v6M12 16.5h.01"/><circle cx="12" cy="12" r="9"/>',
   }
