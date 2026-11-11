@@ -4,8 +4,8 @@
 // daqui não colidirem com os de quem o usa: só globalThis.Destinos sai.
 ;(() => {
   const ENDERECOS_PADRAO = {
-    acervo: 'https://192.168.1.20:8444',
-    flashcards: 'https://192.168.1.20:8445',
+    acervo: 'https://acervo.internal',
+    flashcards: 'https://flashcards.internal',
   }
 
   const APPS = {

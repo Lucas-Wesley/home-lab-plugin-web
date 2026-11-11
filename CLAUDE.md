@@ -17,8 +17,8 @@ Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley
   carrega; `node_modules` é só para os testes.
 - **Nada específico de um site** fora o YouTube (E9): as regras ficam em `extensao/destinos.js`, com teste em
   `testes/destinos.test.js`; o script da página roda em todos os sites, então ele precisa ser leve.
-- **Quem chama os apps é o serviço** (`servico.js`), nunca a página: a permissão de
-  `https://192.168.1.20/*` vale só para a extensão, sem CORS.
+- **Quem chama os apps é o serviço** (`servico.js`), nunca a página: as permissões de
+  `https://192.168.1.20/*` e `https://*.internal/*` valem só para a extensão, sem CORS.
 - **Discreta, mas à vista:** um círculo de 36 px no canto, que mostra o texto nos 5 primeiros
   segundos, ao passar o mouse e depois de enviar (E8). Nada de painéis abertos sozinhos.
 - Guardar só o histórico (50 últimos) e os ajustes, em `chrome.storage.local`.
