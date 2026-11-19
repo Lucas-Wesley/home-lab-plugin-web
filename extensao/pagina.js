@@ -1,12 +1,13 @@
 // O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página com frases de exemplo
-// com áudio, de qualquer site, manda ao Flashcards. Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
+// com áudio, de qualquer site, manda ao Flashcards; num PDF, manda o arquivo à Biblioteca (E12). Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
 ;(() => {
-  const { APPS, acoesDaPagina, destinoDaPagina } = globalThis.Destinos
+  const { APPS, acoesDaPagina, destinoDaPagina, ehPdf, nomeDoPdf } = globalThis.Destinos
 
   const ICONES = {
     acervo: '<path d="M4 5.5A1.5 1.5 0 015.5 4H10v16H5.5A1.5 1.5 0 014 18.5zM10 4h4v16h-4zM14.5 5l4-1 2.5 15-4 1z"/>',
+    biblioteca: '<path d="M5 4.5A1.5 1.5 0 016.5 3H18v15H6.5A1.5 1.5 0 005 19.5zM5 19.5A1.5 1.5 0 006.5 21H18v-3M9 7h5"/>',
     flashcards: '<path d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zM5 12h14"/><path d="M10.4 7.3a1.7 1.7 0 013.2.5c0 1-1.6 1.2-1.6 2M8.5 15.3h7M8.5 17.3h4"/>',
     feito: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     erro: '<path d="M12 7v6M12 16.5h.01"/><circle cx="12" cy="12" r="9"/>',
@@ -80,7 +81,11 @@
     }
   }
 
+  // A página é um PDF aberto no Chrome: pelo tipo do documento ou pelo nome no endereço.
+  const pdfAqui = () => ehPdf(location.href, document.contentType)
+
   function tituloDaPagina() {
+    if (pdfAqui()) return (document.title || nomeDoPdf(location.href)).replace(/\.pdf$/i, '').trim()
     if (!location.hostname.endsWith('youtube.com')) return document.querySelector('h1')?.textContent.trim() || document.title
     return document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '')
   }
@@ -91,11 +96,48 @@
     mostrar('enviando', 'Enviando…')
     let r
     try {
-      r = await chrome.runtime.sendMessage({ tipo: 'enviar', app: destino.app, url: destino.url, titulo: tituloDaPagina() })
+      if (destino.app === 'biblioteca') r = await mandarPdf(location.href, tituloDaPagina())
+      else r = await chrome.runtime.sendMessage({ tipo: 'enviar', app: destino.app, url: destino.url, titulo: tituloDaPagina() })
     } catch {
       r = { estado: 'erro', mensagem: 'A extensão foi atualizada: recarregue a página.' }
     }
     mostrar(r.estado === 'erro' ? 'erro' : 'feito', r.mensagem, r.abrir)
+    return r
+  }
+
+  // O PDF vai inteiro à Biblioteca (E12). Quem baixa é a página, com o acesso dela ao site (um PDF
+  // que pede login também vem); o serviço recebe o arquivo em partes, em base64, e o envia.
+  const PARTE = 8 << 20
+  const emBase64 = (pedaco) =>
+    new Promise((ok, falha) => {
+      const leitor = new FileReader()
+      leitor.onload = () => ok(String(leitor.result).replace(/^data:[^,]*,/, ''))
+      leitor.onerror = () => falha(leitor.error)
+      leitor.readAsDataURL(pedaco)
+    })
+
+  async function mandarPdf(endereco, titulo) {
+    const url = acoesDaPagina(endereco, true)[0]?.url || endereco
+    const falhar = async (mensagem) => {
+      const resultado = { estado: 'erro', mensagem, abrir: '' }
+      await chrome.runtime.sendMessage({ tipo: 'erroDoPdf', url, titulo, resultado })
+      return resultado
+    }
+    let arquivo
+    try {
+      const resposta = await fetch(endereco, { credentials: 'include' })
+      if (!resposta.ok) throw new Error(String(resposta.status))
+      arquivo = await resposta.blob()
+    } catch {
+      return falhar('Não deu para baixar o PDF daqui: abra o PDF e envie de lá.')
+    }
+    const inicio = new TextDecoder().decode(await arquivo.slice(0, 5).arrayBuffer())
+    if (inicio !== '%PDF-') return falhar('O endereço não devolveu um PDF (talvez peça login).')
+    const id = crypto.randomUUID()
+    for (let i = 0; i < arquivo.size; i += PARTE) {
+      await chrome.runtime.sendMessage({ tipo: 'pdfParte', id, dados: await emBase64(arquivo.slice(i, i + PARTE)) })
+    }
+    return chrome.runtime.sendMessage({ tipo: 'enviar', app: 'biblioteca', url, titulo, pdf: id, nome: nomeDoPdf(endereco) })
   }
 
   function escuro() {
@@ -114,7 +156,7 @@
   }
 
   function atualizar() {
-    const novo = destinoDaPagina(location.href, temExemplos())
+    const novo = destinoDaPagina(location.href, !pdfAqui() && temExemplos(), pdfAqui())
     if (!novo) {
       host?.remove()
       host = null
@@ -138,7 +180,7 @@
   // ao Flashcards) e pede para enviar a um dos apps; o resultado aparece no botão.
   chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
     if (mensagem?.tipo === 'destino') {
-      const acoes = acoesDaPagina(location.href)
+      const acoes = acoesDaPagina(location.href, pdfAqui())
       if (!acoes.length) responder(null)
       else {
         const antes = destino
@@ -149,7 +191,7 @@
       return false
     }
     if (mensagem?.tipo === 'enviarDaqui') {
-      const escolhida = acoesDaPagina(location.href).find((a) => a.app === mensagem.app)
+      const escolhida = acoesDaPagina(location.href, pdfAqui()).find((a) => a.app === mensagem.app)
       if (!escolhida) {
         responder(false)
         return false
@@ -162,6 +204,25 @@
         escuro()
       }
       enviar().then(() => responder(true))
+      return true
+    }
+    // Botão direito no PDF aberto (o resultado aparece no botão) ou num link para PDF (E12).
+    if (mensagem?.tipo === 'pdfParaBiblioteca') {
+      if (mensagem.doLink) {
+        mandarPdf(mensagem.url, nomeDoPdf(mensagem.url).replace(/\.pdf$/i, '')).then(responder)
+        return true
+      }
+      destino = acoesDaPagina(location.href, true)[0]
+      atual = destino?.url || ''
+      if (!destino) {
+        responder(null)
+        return false
+      }
+      if (!host || !host.isConnected) {
+        montar()
+        escuro()
+      }
+      enviar().then(responder)
       return true
     }
     return false

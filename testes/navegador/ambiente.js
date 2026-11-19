@@ -16,19 +16,28 @@ function extensaoDeTeste() {
   return dir
 }
 
-// O Acervo e o Flashcards de mentira: guardam o que receberam.
+// O Acervo, o Flashcards e a Biblioteca de mentira: guardam o que receberam.
 function appsFalsos() {
   const recebidos = []
   const vistos = new Set()
   const servidor = http.createServer((req, res) => {
-    let corpo = ''
-    req.on('data', (c) => (corpo += c))
+    const pedacos = []
+    req.on('data', (c) => pedacos.push(c))
     req.on('end', () => {
+      const bruto = Buffer.concat(pedacos)
       const responder = (status, dados) => {
         res.writeHead(status, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify(dados))
       }
-      const dados = corpo ? JSON.parse(corpo) : null
+      // A Biblioteca recebe o PDF num formulário: guarda o corpo como texto (latin1, byte a byte).
+      if (req.method === 'POST' && req.url === '/api/books') {
+        const corpo = bruto.toString('latin1')
+        recebidos.push({ metodo: req.method, caminho: req.url, tipo: req.headers['content-type'], corpo })
+        const ja = vistos.has('livro')
+        vistos.add('livro')
+        return ja ? responder(409, { error: 'esse livro já está na biblioteca' }) : responder(201, { id: 'livro1', title: 'x' })
+      }
+      const dados = bruto.length ? JSON.parse(bruto.toString('utf8')) : null
       recebidos.push({ metodo: req.method, caminho: req.url, corpo: dados })
       if (req.method === 'POST' && req.url === '/api/referencias') {
         if (vistos.has(dados.url)) return responder(409, { erro: 'Este vídeo já está nas Referências.', id: 'r1' })
@@ -50,6 +59,9 @@ export const PAGINA_COM_EXEMPLOS = `<!doctype html><html><head><title>Shoot Up |
   <h1>Shoot Up</h1>
   <p><em><strong>Prices shot up last month.</strong><br>Os preços dispararam no mês passado.</em></p>
   <figure><audio src="/audio/01.mp3"></audio></figure></body></html>`
+
+// Um PDF mínimo; o conteúdo é o que a Biblioteca falsa confere.
+export const PDF = '%PDF-1.4\n% livro de teste\n%%EOF\n'
 
 const ARTIGO = `<!doctype html><html><head><title>Break the ice - Notícias</title></head><body>
   <h1>Break the ice</h1><p>Um artigo sem frases de exemplo destacadas.</p></body></html>`
@@ -79,10 +91,21 @@ export const test = base.extend({
       const body = u.pathname === '/' ? '<!doctype html><html><head><title>Blog</title></head><body><h1>Blog</h1></body></html>' : PAGINA_COM_EXEMPLOS
       return route.fulfill({ contentType: 'text/html', body })
     })
+    // O Chromium dos testes baixa o PDF em vez de abrir: a página do PDF é simulada com HTML, e a
+    // leitura do arquivo (o fetch da extensão) recebe o PDF.
+    await context.route('https://docs.exemplo.com/**', (route) => {
+      const u = new URL(route.request().url())
+      if (u.pathname === '/privado.pdf') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Entrar</title><h1>Entrar</h1>' })
+      if (u.pathname === '/grande.pdf' && route.request().resourceType() !== 'document')
+        return route.fulfill({ contentType: 'application/pdf', body: Buffer.concat([Buffer.from(PDF), Buffer.alloc(9 << 20, 0xe9)]) })
+      if (route.request().resourceType() === 'document')
+        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>The Bell of Atri</title></head><body><a id="pdf" href="/outro.pdf">PDF</a></body></html>' })
+      return route.fulfill({ contentType: 'application/pdf', body: PDF })
+    })
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))
     let [servico] = context.serviceWorkers()
     if (!servico) servico = await context.waitForEvent('serviceworker')
-    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e } }), apps.endereco)
+    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e, biblioteca: e } }), apps.endereco)
     context.servico = servico
     await usar(context)
     await context.close()

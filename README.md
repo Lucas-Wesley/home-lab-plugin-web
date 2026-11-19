@@ -10,9 +10,11 @@ põe um botão pequeno no canto de baixo para mandar o link ao app certo:
 - **Qualquer página ou link** (artigo, blog, site) → **Acervo** ou **Flashcards**, pelo ícone da
   extensão ou pelo botão direito: no Acervo, a página vira uma Referência (o texto é lido e
   organizado na fila, e dali dá para gerar flashcards do conteúdo).
+- **PDF aberto no navegador** (ou um link para `.pdf`, pelo botão direito) → **Biblioteca**: o
+  arquivo vai inteiro e vira um livro, pronto para ler.
 
 A extensão não guarda nada além do histórico do que foi enviado (os últimos 50) e dos ajustes.
-Não tem servidor próprio: fala direto com o Acervo e o Flashcards, na rede de casa.
+Não tem servidor próprio: fala direto com o Acervo, o Flashcards e a Biblioteca, na rede de casa.
 
 ## Instalar (uma vez)
 
@@ -24,6 +26,12 @@ Não tem servidor próprio: fala direto com o Acervo e o Flashcards, na rede de 
    com um clique.
 
 Precisa do certificado do homelab instalado no Mac (o mesmo que abre a Biblioteca sem aviso).
+
+**Em outra máquina (o Windows da casa):** gere o zip com `npm run zip` (sai na pasta do homelab,
+`homelab-extensao-<versão>.zip`, com a pasta `extensao` e o certificado `homelab-ca.crt`). No
+Windows: descompacte, instale o certificado (clique duplo → Instalar certificado → Máquina local →
+"Autoridades de Certificação Raiz Confiáveis") e carregue a pasta `extensao` sem compactação. O
+Windows precisa usar o DNS da casa (o AdGuard) para achar os nomes `.internal`.
 
 **Atualizar:** depois de um `git pull`, em `chrome://extensions`, o botão ↻ do cartão **Homelab**.
 As abas abertas antes disso precisam ser recarregadas.

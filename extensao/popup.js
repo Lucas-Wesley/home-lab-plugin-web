@@ -95,11 +95,12 @@ async function iniciar() {
   const enderecos = { ...ENDERECOS_PADRAO, ...(s.enderecos || {}) }
   $('acervo').value = enderecos.acervo
   $('flashcards').value = enderecos.flashcards
+  $('biblioteca').value = enderecos.biblioteca
   carregarBaralhos(s.baralho || '')
 
   $('baralho').addEventListener('change', () => chrome.storage.local.set({ baralho: $('baralho').value }))
   $('tipo').addEventListener('change', () => chrome.storage.local.set({ tipo: $('tipo').value }))
-  for (const app of ['acervo', 'flashcards']) {
+  for (const app of ['acervo', 'flashcards', 'biblioteca']) {
     $(app).addEventListener('change', async () => {
       const atuais = (await chrome.storage.local.get('enderecos')).enderecos || {}
       const valor = $(app).value.trim().replace(/\/+$/, '')

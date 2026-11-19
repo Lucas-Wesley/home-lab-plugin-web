@@ -152,3 +152,42 @@ test('no YouTube fora de um vídeo, o popup não oferece envio', async ({ contex
   await expect(popup.getByText('Nada enviado ainda.')).toBeVisible()
   await expect(popup.locator('#aqui')).toBeHidden()
 })
+
+test('num PDF, o botão manda o arquivo à Biblioteca (E12)', async ({ page, context, apps, extensao }) => {
+  await page.goto('https://docs.exemplo.com/livros/The%20Bell%20of%20Atri.pdf?utm_source=x')
+  await expect(botao(page)).toHaveAttribute('aria-label', 'Mandar à Biblioteca')
+  await botao(page).click()
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Biblioteca')
+  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/livro/livro1`)
+
+  const pedido = apps.recebidos.find((r) => r.caminho === '/api/books')
+  expect(pedido.tipo).toMatch(/^multipart\/form-data/)
+  expect(pedido.corpo).toContain('filename="The Bell of Atri.pdf"')
+  expect(pedido.corpo).toContain('%PDF-1.4\n% livro de teste')
+  expect(pedido.corpo).toMatch(/name="title"\r\n\r\nThe Bell of Atri\r\n/)
+
+  // O popup só oferece a Biblioteca; de novo, ela já tem o livro.
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#acoes button')).toHaveText(['Mandar à Biblioteca'])
+  await popup.getByRole('button', { name: 'Mandar à Biblioteca' }).click()
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Já está na Biblioteca')
+  await expect(popup.locator('#historico li').first()).toContainText('Biblioteca')
+})
+
+test('um PDF que pede login não vai à Biblioteca', async ({ page, apps }) => {
+  await page.goto('https://docs.exemplo.com/privado.pdf')
+  await botao(page).click()
+  await expect(page.locator('homelab-envio .texto')).toHaveText('O endereço não devolveu um PDF (talvez peça login).')
+  expect(apps.recebidos.filter((r) => r.caminho === '/api/books')).toHaveLength(0)
+})
+
+test('um PDF grande vai em partes e chega inteiro', async ({ page, apps }) => {
+  await page.goto('https://docs.exemplo.com/grande.pdf')
+  await botao(page).click()
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Biblioteca', { timeout: 15000 })
+  const { corpo } = apps.recebidos.find((r) => r.caminho === '/api/books')
+  // Os bytes não-ASCII (0xE9) chegam como bytes, não como texto: o corpo tem o PDF + 9 MiB.
+  expect(corpo.split('é').length - 1).toBe(9 << 20)
+})

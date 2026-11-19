@@ -1,7 +1,7 @@
 # Decisões
 
-Estado em 08/11/2026: versão 1.3.0 feita e testada. Instalada pelo Lucas com "Carregar sem
-compactação" (não está na Chrome Web Store).
+Estado em 18/11/2026: versão 1.5.0 feita e testada. Instalada pelo Lucas com "Carregar sem
+compactação" (não está na Chrome Web Store); para outra máquina, um zip da pasta `extensao/` (E12).
 
 | # | Decisão | Por quê |
 |---|---|---|
@@ -16,6 +16,7 @@ compactação" (não está na Chrome Web Store).
 | E9 | **Qualquer site (06/11/2026, versão 1.2.0).** Nada específico de um site: o script da página roda em todos os sites (`https://*/*` e `http://*/*`, menos o homelab) e põe o botão de flashcards onde há um parágrafo com negrito e quebra de linha (frase e tradução) e algum `<audio>`. Em qualquer outra página (fora do YouTube), o **popup** oferece "Fazer flashcards", e o Flashcards lê a página ou a IA tira os exemplos do texto (F31 do Flashcards). O link vai sem `#`, `utm_…`, `fbclid` e `gclid` | Pedido do Lucas: o link pode ser de qualquer lugar. O botão na página continua só onde há exemplos, para não aparecer em todo site; o popup cobre o resto. |
 | E10 | **Qualquer página ao Acervo ou ao Flashcards (08/11/2026, versão 1.3.0).** O popup mostra um botão por app: num vídeo do YouTube, **Mandar ao Acervo**; em qualquer outra página, **Mandar ao Acervo** (vira uma Referência do tipo artigo, D34 do Acervo) e **Fazer flashcards**. Com o **botão direito** num link ou na página, as mesmas duas ações, sem abrir o link (permissão `contextMenus`); o resultado vai para o histórico e aparece por 5 s no ícone da extensão (✓ ou !). O círculo na página continua só nos vídeos e nas páginas com frases de exemplo. O título vem do `<h1>` (fora do YouTube) | Pedido do Lucas: qualquer link pode virar Referência no Acervo ou flashcards. O botão direito cobre o link que ele ainda não abriu; o círculo em toda página deixaria de ser discreto. |
 | E11 | **Nomes em vez de IP (11/11/2026, versão 1.4.0).** Os endereços padrão passam a ser `https://acervo.internal` e `https://flashcards.internal`, os nomes que o AdGuard da casa resolve (item 3 do `SUGESTOES.md`). A permissão de host e a exclusão do script da página valem para `https://*.internal/*` além do IP | Um endereço já salvo nos ajustes continua valendo, porque o Caddy responde pelos dois. Depois de atualizar, recarregue a extensão em `chrome://extensions`. |
+| E12 | **PDF à Biblioteca (18/11/2026, versão 1.5.0).** Num PDF aberto (pelo `document.contentType` ou pelo nome terminado em `.pdf`), o círculo, o popup e o botão direito oferecem só **Mandar à Biblioteca**; o botão direito também aparece num link para `.pdf`. O arquivo vai inteiro, como livro (`POST /api/books` da Biblioteca, com `file` e `title`). Quem baixa o PDF é a **página** (o script dela, com o acesso dela ao site: um PDF que pede login também vem); o serviço recebe o arquivo em partes de 8 MB, em base64 (as mensagens da extensão são JSON), e o envia. Se o endereço não devolve um PDF (`%PDF-`), avisa e não envia. Endereço padrão: `https://biblioteca.internal`, também nos ajustes. **Zip para outra máquina:** `extensao/` compactada, com o certificado da CA do homelab (o Chrome do Windows precisa confiar nele) | Pedido do Lucas: mandar direto à Biblioteca o PDF que ele está lendo no navegador, e instalar a extensão no Windows da casa. O serviço baixar o PDF pediria permissão para todos os sites; a página já tem o acesso. Link para PDF de outro site esbarra no CORS: a mensagem pede para abrir o PDF e enviar de lá. |
 
 ## Próximos passos
 

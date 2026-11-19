@@ -93,3 +93,31 @@ test('o histórico guarda os últimos envios, o mais novo primeiro', () => {
   assert.equal(h.length, D.HISTORICO_MAXIMO)
   assert.equal(h[0].n, D.HISTORICO_MAXIMO + 4)
 })
+
+test('um PDF vai só à Biblioteca, pelo tipo do documento ou pelo nome (E12)', () => {
+  assert.equal(D.ehPdf('https://site.com/livros/O%20Convite.pdf?token=1'), true)
+  assert.equal(D.ehPdf('https://site.com/Arquivo.PDF'), true)
+  assert.equal(D.ehPdf('https://site.com/baixar?id=9', 'application/pdf'), true)
+  assert.equal(D.ehPdf('https://site.com/pdf-gratis/'), false)
+  assert.equal(D.ehPdf('file:///Users/x/a.pdf'), false)
+  assert.deepEqual(json(D.acoesDaPagina('https://site.com/a.pdf?utm_source=x&token=1#page=3', true)), [
+    { app: 'biblioteca', url: 'https://site.com/a.pdf?token=1' },
+  ])
+  assert.deepEqual(json(D.destinoDaPagina('https://site.com/a.pdf', false, true)), { app: 'biblioteca', url: 'https://site.com/a.pdf' })
+  assert.equal(D.destinoDaPagina('https://site.com/a', false, false), null)
+  assert.equal(D.nomeDoPdf('https://site.com/livros/O%20Convite.pdf?t=1'), 'O Convite.pdf')
+  assert.equal(D.nomeDoPdf('https://site.com/baixar'), 'baixar.pdf')
+  assert.equal(D.nomeDoPdf('https://site.com/'), 'documento.pdf')
+})
+
+test('traduz as respostas da Biblioteca', () => {
+  const base = 'https://biblioteca.internal/'
+  assert.deepEqual(json(D.resultadoDaResposta('biblioteca', base, 201, { id: 'a b' })), {
+    estado: 'enviado',
+    mensagem: 'Na Biblioteca',
+    abrir: 'https://biblioteca.internal/#/livro/a%20b',
+  })
+  assert.equal(D.resultadoDaResposta('biblioteca', base, 409, { error: 'esse livro já está na biblioteca' }).estado, 'repetido')
+  assert.equal(D.resultadoDaResposta('biblioteca', base, 400, { error: 'arquivo inválido' }).mensagem, 'arquivo inválido')
+  assert.equal(D.pedidoPara('biblioteca', 'https://site.com/a.pdf', {}).caminho, '/api/books')
+})

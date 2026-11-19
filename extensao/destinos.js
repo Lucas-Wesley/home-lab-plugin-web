@@ -6,11 +6,13 @@
   const ENDERECOS_PADRAO = {
     acervo: 'https://acervo.internal',
     flashcards: 'https://flashcards.internal',
+    biblioteca: 'https://biblioteca.internal',
   }
 
   const APPS = {
     acervo: { nome: 'Acervo', acao: 'Mandar ao Acervo' },
     flashcards: { nome: 'Flashcards', acao: 'Fazer flashcards' },
+    biblioteca: { nome: 'Biblioteca', acao: 'Mandar à Biblioteca' },
   }
 
   const HISTORICO_MAXIMO = 50
@@ -42,9 +44,20 @@
     return limpo.href
   }
 
+  // ehPdf: a página (ou o link) é um PDF, pelo tipo do documento (document.contentType) ou pelo nome (E12).
+  function ehPdf(endereco, tipo = '') {
+    if (tipo === 'application/pdf') return true
+    try {
+      const u = new URL(endereco)
+      return (u.protocol === 'https:' || u.protocol === 'http:') && /\.pdf$/i.test(u.pathname)
+    } catch {
+      return false
+    }
+  }
+
   // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai ao Acervo;
-  // qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
-  function destinoDaPagina(endereco, temExemplos) {
+  // um PDF vai à Biblioteca (E12); qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
+  function destinoDaPagina(endereco, temExemplos, pdf = false) {
     const video = videoDoYouTube(endereco)
     if (video) return { app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }
     let u
@@ -53,14 +66,16 @@
     } catch {
       return null
     }
+    if (pdf && (u.protocol === 'https:' || u.protocol === 'http:')) return { app: 'biblioteca', url: linkLimpo(u) }
     if (!temExemplos || (u.protocol !== 'https:' && u.protocol !== 'http:') || /(^|\.)youtube\.com$/.test(u.hostname)) return null
     return { app: 'flashcards', url: linkLimpo(u) }
   }
 
   // acoesDaPagina: para onde a página (ou um link) pode ir, pelo popup ou pelo menu do botão direito
   // (E10). O vídeo do YouTube vai ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
-  // Flashcards. O YouTube fora de um vídeo e o que não é http(s) não vão a lugar nenhum.
-  function acoesDaPagina(endereco) {
+  // Flashcards. Um PDF vai só à Biblioteca, como livro (E12). O YouTube fora de um vídeo e o que não é
+  // http(s) não vão a lugar nenhum.
+  function acoesDaPagina(endereco, pdf = false) {
     const video = videoDoYouTube(endereco)
     if (video) return [{ app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }]
     let u
@@ -71,6 +86,7 @@
     }
     if ((u.protocol !== 'https:' && u.protocol !== 'http:') || /(^|\.)youtube\.com$/.test(u.hostname)) return []
     const url = linkLimpo(u)
+    if (pdf) return [{ app: 'biblioteca', url }]
     return [
       { app: 'acervo', url },
       { app: 'flashcards', url },
@@ -87,6 +103,7 @@
   // "novo" (um baralho novo para cada página).
   function pedidoPara(app, url, ajustes) {
     if (app === 'acervo') return { caminho: '/api/referencias', corpo: { url } }
+    if (app === 'biblioteca') return { caminho: '/api/books' } // o corpo é o próprio PDF, num formulário (servico.js)
     const baralho = ajustes.baralho === 'novo' ? '' : ajustes.baralho || ''
     return { caminho: '/api/links', corpo: { url, baralho_id: baralho, tipo: ajustes.tipo || 'basico' } }
   }
@@ -97,6 +114,9 @@
     if (app === 'acervo') {
       if (status === 201) return { estado: 'enviado', mensagem: 'Na fila do Acervo', abrir: `${base}/#/referencia/${dados.id}` }
       if (status === 409 && dados?.id) return { estado: 'repetido', mensagem: 'Já está no Acervo', abrir: `${base}/#/referencia/${dados.id}` }
+    } else if (app === 'biblioteca') {
+      if (status === 201) return { estado: 'enviado', mensagem: 'Na Biblioteca', abrir: `${base}/#/livro/${encodeURIComponent(dados.id)}` }
+      if (status === 409) return { estado: 'repetido', mensagem: 'Já está na Biblioteca', abrir: '' }
     } else if (status === 201) {
       const pronta = dados.estado === 'em_revisao'
       return {
@@ -107,7 +127,18 @@
     } else if (status === 409) {
       return { estado: 'repetido', mensagem: dados?.erro || 'Já está no baralho', abrir: '' }
     }
-    return { estado: 'erro', mensagem: dados?.erro || `O ${APPS[app].nome} respondeu ${status}`, abrir: '' }
+    // A Biblioteca responde os erros em "error"; o Acervo e o Flashcards, em "erro".
+    return { estado: 'erro', mensagem: dados?.erro || dados?.error || `O ${APPS[app].nome} respondeu ${status}`, abrir: '' }
+  }
+
+  // nomeDoPdf: o nome do arquivo para a Biblioteca, tirado do endereço.
+  function nomeDoPdf(endereco) {
+    let nome = ''
+    try {
+      nome = decodeURIComponent(new URL(endereco).pathname.split('/').pop() || '')
+    } catch {}
+    nome = nome.replace(/[\\/:*?"<>|]/g, '').trim() || 'documento'
+    return /\.pdf$/i.test(nome) ? nome : `${nome}.pdf`
   }
 
   // acrescentar põe o envio no topo do histórico, sem passar do máximo.
@@ -115,5 +146,5 @@
     return [envio, ...historico].slice(0, HISTORICO_MAXIMO)
   }
 
-  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, destinoDaPagina, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
+  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, ehPdf, nomeDoPdf, destinoDaPagina, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
 })()
