@@ -1,4 +1,4 @@
-// O botão nas páginas: num vídeo do YouTube, manda à Trilha (E13); numa página com frases de exemplo
+// O botão nas páginas: nos cursos (Branas.io, LINUXtips), coleta como o vídeo chega (E14); num vídeo do YouTube, manda à Trilha (E13); numa página com frases de exemplo
 // com áudio, de qualquer site, manda ao Flashcards; num PDF, manda o arquivo à Biblioteca (E12). Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
@@ -10,6 +10,7 @@
     biblioteca: '<path d="M5 4.5A1.5 1.5 0 016.5 3H18v15H6.5A1.5 1.5 0 005 19.5zM5 19.5A1.5 1.5 0 006.5 21H18v-3M9 7h5"/>',
     flashcards: '<path d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zM5 12h14"/><path d="M10.4 7.3a1.7 1.7 0 013.2.5c0 1-1.6 1.2-1.6 2M8.5 15.3h7M8.5 17.3h4"/>',
     trilha: '<path d="M5 19V9M12 19V5M19 19v-7"/>',
+    coleta: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h1.2l1-2.5 1.6 5 1-2.5h1.2"/>',
     feito: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     erro: '<path d="M12 7v6M12 16.5h.01"/><circle cx="12" cy="12" r="9"/>',
   }
@@ -36,6 +37,7 @@
     .caixa[data-estado="feito"] svg { stroke: var(--azul); }
     .caixa.caixa[data-estado="erro"] { color: var(--terracota); }
     .caixa[data-estado="enviando"] svg { animation: pulsar 1s ease-in-out infinite; }
+    .caixa[data-estado="coletando"] svg { stroke: var(--terracota); animation: pulsar 1.6s ease-in-out infinite; }
     a { margin-right: 12px; color: var(--azul); text-decoration: none; font-weight: 600; }
     a:hover { text-decoration: underline; }
     a[hidden] { display: none; }
@@ -91,9 +93,67 @@
     return document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '')
   }
 
+  const acaoDe = (d) => (d.app === 'coleta' ? 'Analisar vídeo' : APPS[d.app].acao)
+
+  // A coleta (E14): o primeiro clique começa (o serviço liga o depurador do Chrome na aba), os
+  // seguintes salvam. Enquanto coleta, o botão mostra quantos pedidos vieram; a pergunta a cada 2 s
+  // também mantém o serviço acordado.
+  let contador = 0
+  function mostrarColeta(e) {
+    clearInterval(contador)
+    if (!e?.coletando) return false
+    const texto = () =>
+      e.encerrada
+        ? 'Coleta interrompida: clique para salvar o que veio'
+        : `Coletando: ${e.pedidos} pedidos, ${e.video} de vídeo · clique para salvar`
+    mostrar('coletando', texto())
+    contador = setInterval(async () => {
+      try {
+        e = await chrome.runtime.sendMessage({ tipo: 'coletaEstado' })
+      } catch {
+        e = null
+      }
+      if (!e?.coletando) return clearInterval(contador)
+      const rotulo = host?.shadowRoot.querySelector('.texto')
+      if (rotulo) rotulo.textContent = texto()
+    }, 2000)
+    return true
+  }
+
+  function salvarArquivo(nome, texto) {
+    const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nome
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  }
+
+  async function alternarColeta() {
+    const caixa = host.shadowRoot.querySelector('.caixa')
+    try {
+      if (caixa.dataset.estado !== 'coletando') {
+        mostrar('enviando', 'Ligando a coleta…')
+        const e = await chrome.runtime.sendMessage({ tipo: 'coletaComecar', curso: destino.curso, pagina: location.href, titulo: document.title })
+        if (e?.erro) return mostrar('erro', e.erro)
+        mostrarColeta(e)
+        return
+      }
+      clearInterval(contador)
+      mostrar('enviando', 'Salvando a coleta…')
+      const r = await chrome.runtime.sendMessage({ tipo: 'coletaEncerrar' })
+      if (r?.erro) return mostrar('erro', r.erro)
+      salvarArquivo(r.nome, r.json)
+      mostrar('feito', r.mensagem)
+    } catch {
+      mostrar('erro', 'A extensão foi atualizada: recarregue a página.')
+    }
+  }
+
   async function enviar() {
     if (host) delete host.shadowRoot.querySelector('.caixa').dataset.apresentar
     if (!destino || host.shadowRoot.querySelector('.caixa').dataset.estado === 'enviando') return
+    if (destino.app === 'coleta') return alternarColeta()
     mostrar('enviando', 'Enviando…')
     let r
     try {
@@ -169,12 +229,14 @@
     atual = novo.url
     if (!host || !host.isConnected) montar()
     escuro()
-    mostrar('parado', APPS[novo.app].acao)
+    mostrar('parado', acaoDe(novo))
     // O nome fica à vista nos primeiros segundos, para o botão ser notado; depois, só o ícone.
     const caixa = host.shadowRoot.querySelector('.caixa')
     caixa.dataset.apresentar = ''
     clearTimeout(apresentar)
     apresentar = setTimeout(() => delete caixa.dataset.apresentar, 5000)
+    // A página recarregou no meio de uma coleta: o botão volta a mostrar que coleta.
+    if (novo.app === 'coleta') chrome.runtime.sendMessage({ tipo: 'coletaEstado' }).then(mostrarColeta).catch(() => {})
   }
 
   // O popup do ícone pergunta o que esta página pode fazer (E10: qualquer página vai ao Acervo ou

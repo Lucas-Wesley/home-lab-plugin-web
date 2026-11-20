@@ -193,3 +193,28 @@ test('um PDF grande vai em partes e chega inteiro', async ({ page, apps }) => {
   // Os bytes não-ASCII (0xE9) chegam como bytes, não como texto: o corpo tem o PDF + 9 MiB.
   expect(corpo.split('é').length - 1).toBe(9 << 20)
 })
+
+test('na aula de um curso, o botão coleta o tráfego do player e salva o relatório (E14)', async ({ page }) => {
+  await page.goto('https://app.branas.io/users/u/products/p/contents/c')
+  await expect(botao(page)).toHaveAttribute('aria-label', 'Analisar vídeo')
+
+  await botao(page).click()
+  await expect(page.locator('homelab-envio .texto')).toContainText('Coletando')
+  // O player (iframe de outro site) pede o manifesto e um pedaço, como ao dar play.
+  await page.frameLocator('#player').locator('video').waitFor({ state: 'attached' })
+  await page.frames().find((f) => f.url().includes('player.exemplo.com')).evaluate(() => window.tocar())
+  await expect(page.locator('homelab-envio .texto')).toContainText('2 de vídeo', { timeout: 8000 })
+
+  const [download] = await Promise.all([page.waitForEvent('download'), botao(page).click()])
+  expect(download.suggestedFilename()).toMatch(/^homelab-coleta-branas-\d{4}-\d{2}-\d{2}-\d{4}\.json$/)
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Coleta salva em Downloads: HLS com AES-128')
+
+  const relatorio = JSON.parse(await (await import('node:fs/promises')).readFile(await download.path(), 'utf8'))
+  expect(relatorio.curso).toBe('branas')
+  expect(relatorio.resumo.veredito).toBe('aes128')
+  expect(relatorio.quadros.some((q) => q.tipo === 'iframe' && q.url.includes('player.exemplo.com'))).toBe(true)
+  const manifesto = relatorio.pedidos.find((p) => p.tipo === 'manifesto-hls')
+  expect(manifesto.corpo).toContain('#EXT-X-KEY:METHOD=AES-128')
+  expect(manifesto.cabecalhosPedido.Authorization).toBe('[omitido]')
+  expect(relatorio.videos.length).toBe(1)
+})

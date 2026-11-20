@@ -108,6 +108,18 @@ export const test = base.extend({
         return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>The Bell of Atri</title></head><body><a id="pdf" href="/outro.pdf">PDF</a></body></html>' })
       return route.fulfill({ contentType: 'application/pdf', body: PDF })
     })
+    // A aula de um curso (E14): a página carrega o player num iframe de outro site, que pede um HLS com AES-128.
+    await context.route('https://app.branas.io/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Arquitetura de Microservices</title></head><body><h1>Arquitetura de Microservices</h1><iframe id="player" src="https://player.exemplo.com/embed/1"></iframe></body></html>' }),
+    )
+    await context.route('https://player.exemplo.com/**', (route) => {
+      const u = new URL(route.request().url())
+      if (u.pathname === '/embed/1')
+        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>window.tocar = () => fetch("/v/1/playlist.m3u8?token=abc", { headers: { Authorization: "Bearer segredo" } }).then((r) => r.text()).then(() => fetch("/v/1/seg_001.ts"))</script>' })
+      if (u.pathname.endsWith('.m3u8'))
+        return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="https://player.exemplo.com/keys/k1"\n#EXTINF:6.0,\nseg_001.ts\n' })
+      return route.fulfill({ contentType: 'video/mp2t', body: Buffer.alloc(1000, 1) })
+    })
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))
     let [servico] = context.serviceWorkers()
     if (!servico) servico = await context.waitForEvent('serviceworker')

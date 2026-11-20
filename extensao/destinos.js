@@ -19,6 +19,28 @@
 
   const HISTORICO_MAXIMO = 50
 
+  // Os cursos de outras plataformas (E14): nas páginas deles, o botão vira "Analisar vídeo", que coleta
+  // como o vídeo chega (só a coleta, nada é baixado). Os donos dos dois cursos autorizaram o Lucas.
+  const CURSOS = {
+    branas: { nome: 'Branas.io', hosts: ['branas.io'] },
+    linuxtips: { nome: 'LINUXtips', hosts: ['linuxtips.io'] },
+  }
+
+  // cursoDaPagina: o curso da página (o id em CURSOS) e o endereço base dele, ou null.
+  function cursoDaPagina(endereco) {
+    let u
+    try {
+      u = new URL(endereco)
+    } catch {
+      return null
+    }
+    if (u.protocol !== 'https:') return null
+    for (const [id, curso] of Object.entries(CURSOS)) {
+      if (curso.hosts.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`))) return { curso: id, nome: curso.nome, url: u.origin }
+    }
+    return null
+  }
+
   // O vídeo do YouTube na URL: /watch?v=, /shorts/<id> ou /live/<id> (os mesmos que o Acervo aceita).
   function videoDoYouTube(endereco) {
     let u
@@ -59,7 +81,11 @@
 
   // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai à Trilha (E13);
   // um PDF vai à Biblioteca (E12); qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
+  // Na página de um dos cursos (E14), o botão é o da coleta, com o endereço base do curso: trocar de aula
+  // sem recarregar não reinicia o botão.
   function destinoDaPagina(endereco, temExemplos, pdf = false) {
+    const curso = cursoDaPagina(endereco)
+    if (curso) return { app: 'coleta', ...curso }
     const video = videoDoYouTube(endereco)
     if (video) return { app: 'trilha', url: `https://www.youtube.com/watch?v=${video}` }
     let u
@@ -161,5 +187,5 @@
     return [envio, ...historico].slice(0, HISTORICO_MAXIMO)
   }
 
-  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, HISTORICO_MAXIMO, videoDoYouTube, ehPdf, nomeDoPdf, destinoDaPagina, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
+  globalThis.Destinos = { ENDERECOS_PADRAO, APPS, CURSOS, HISTORICO_MAXIMO, cursoDaPagina, videoDoYouTube, ehPdf, nomeDoPdf, destinoDaPagina, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar }
 })()
