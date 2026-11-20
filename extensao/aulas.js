@@ -1,8 +1,8 @@
 // Baixar a aula do curso (E15): as regras puras, usadas pelo player (player.js), pela página
 // (pagina.js), pelo serviço, pelo popup e pelos testes. Script comum: só globalThis.Aulas sai.
 ;(() => {
-  // Os players dos cursos: o script player.js roda nos iframes deles e conta os manifestos HLS.
-  const PLAYERS = ['iframe.mediadelivery.net', 'tv.pandavideo.com.br']
+  // O player.js roda em todos os quadros (a página e os iframes do player, de qualquer site) e conta os
+  // manifestos HLS só quando a aba é de um dos cursos (E17: cada plataforma usa um player diferente).
 
   const ehManifesto = (url) => /\.m3u8(\?|$)/i.test(url)
 
@@ -30,6 +30,11 @@
     if (produto) return `${u.hostname}/products/${produto[1]}`
     const treino = u.pathname.match(/\/treinamentos\/([^/]+)/)
     if (treino) return `${u.hostname}/treinamentos/${treino[1]}`
+    // Full Cycle: /courses/<formação>/<n>/catalog/<n>/…; Tech Leads Club: /c/<curso>/…
+    const catalogo = u.pathname.match(/^\/courses\/([^/]+\/\d+\/catalog\/\d+)/)
+    if (catalogo) return `${u.hostname}/courses/${catalogo[1]}`
+    const comunidade = u.pathname.match(/^\/c\/([^/]+)/)
+    if (comunidade) return `${u.hostname}/c/${comunidade[1]}`
     return u.hostname
   }
 
@@ -51,7 +56,7 @@
   }
 
   // Títulos que não são o da aula (o nome do site, da sala).
-  const GENERICOS = /^(branas\.io|linuxtips|sala de aula|mesa|aulas?|curso|in[ií]cio|home)$/i
+  const GENERICOS = /^(branas\.io|linuxtips|full ?cycle|tech leads club|sala de aula|mesa|aulas?|cursos?|meus cursos|in[ií]cio|home)$/i
 
   // tituloLimpo: o título da aba sem o nome do site ("Sala de Aula | LINUXtips" → "").
   function tituloLimpo(texto) {
@@ -64,7 +69,41 @@
   const PARECE_MODULO = /^(aula|m[óo]dulo|semana|cap[ií]tulo|se[cç][ãa]o|parte|unidade|module|week|lesson|extra)\b/i
 
   // Textos curtos da barra lateral que não são nome de aula: progresso, duração, estado, navegação.
-  const NAO_E_AULA = /^(\d{1,3}\s*%.*|\d+\s*(h|min|s)\b.*|\d+\s*\/\s*\d+|assistida.*|em progresso.*|conclu[ií]d[oa]|anterior|pr[óo]ximo|voltar|recolher|aula atual|report do m[óo]dulo)$/i
+  const NAO_E_AULA = /^(\d{1,3}\s*%.*|\d+\s*(h|min|s)\b.*|\d+\s*\/\s*\d+|assistida.*|em progresso.*|conclu[ií]d[oa]|anterior|pr[óo]ximo|voltar|recolher|aula atual|report do m[óo]dulo|\d+ de \d+ conclu[ií]d[oa]s?|\d+\s*(aulas?|v[íi]deos?|lessons?|cap[ií]tulos?)|mostrar transcri[cç][ãa]o|concluir aula|continuar|\d{1,2}:\d{2}(:\d{2})?)$/i
+
+  // A contagem ao lado do nome do módulo ("3 aulas", "5 aulas"): o nome do módulo fica junto (Tech Leads Club).
+  const CONTAGEM = /^\d+\s*(aulas?|v[íi]deos?|lessons?)$/i
+
+  // O nome do curso na URL (/c/<curso>, Tech Leads Club) e o texto da página que é o mesmo, sem o "[Curso]".
+  const lesma = (t) =>
+    String(t || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  function cursoDoEndereco(endereco, textos) {
+    let u
+    try {
+      u = new URL(endereco)
+    } catch {
+      return ''
+    }
+    const m = u.pathname.match(/^\/c\/([^/]+)/)
+    if (!m) return ''
+    const alvo = lesma(decodeURIComponent(m[1]))
+    if (alvo.length < 6) return ''
+    const achado = (textos || []).map((t) => String(t || '').replace(/\s+/g, ' ').trim()).find((t) => t.length < 150 && lesma(t).endsWith(alvo))
+    return achado ? achado.replace(/^\[[^\]]*\]\s*/, '') : ''
+  }
+
+  // Do caminho de navegação ("Meus Cursos › Curso Full Cycle 4.0 › DevSecOps › DevSecOps na Prática"), o curso:
+  // o último item que não é genérico nem a própria aula.
+  function cursoDoCaminho(itens, titulo = '') {
+    const limpos = (itens || []).map((t) => String(t || '').replace(/\s+/g, ' ').trim()).filter((t) => t.length > 2 && t.length < 150 && !GENERICOS.test(t) && !/^[›>/»|]$/.test(t))
+    for (let i = limpos.length - 1; i >= 0; i--) if (limpos[i].toLowerCase() !== String(titulo).toLowerCase()) return limpos[i]
+    return ''
+  }
 
   // "0% concluído": o nome do curso fica logo antes (Branas.io).
   const PROGRESSO = /^\d{1,3}\s*%\s*conclu/i
@@ -114,5 +153,5 @@
     return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`
   }
 
-  globalThis.Aulas = { NAO_E_AULA, PROGRESSO, escolherTitulo, PLAYERS, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
+  globalThis.Aulas = { NAO_E_AULA, PROGRESSO, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
 })()

@@ -147,6 +147,49 @@ export const test = base.extend({
         return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="https://player-vz-teste.tv.pandavideo.com.br/keys/k1"\n#EXTINF:6.0,\nseg_001.ts\n' })
       return route.fulfill({ contentType: 'video/mp2t', body: Buffer.alloc(1000, 1) })
     })
+    // A aula da Tech Leads Club (print de 20/11, uma comunidade Circle): o curso na barra de cima ("[Curso] …",
+    // o mesmo da URL /c/<curso>), os módulos em cartões com "N aulas", a aula no <h1> e destacada na lista,
+    // e o player na própria página (sem iframe).
+    const TECHLEADS = `<!doctype html><html><head><title>Tech Leads Club</title></head><body>
+      <header><button>☰</button><span>[Curso] Fundamentos do Desenvolvimento de Software Enterprise</span><button>Concluir aula</button></header>
+      <aside><div><button>←</button><div>6 de 69 concluídos</div><div>8%</div></div>
+        <div class="secao"><div class="cab"><div>Construindo o primeiro MVP de streaming</div><div>3 aulas</div></div>
+          <div class="itens"><a class="item"><span>Setup e upload de video</span><span>Aula</span></a>
+            <a class="item item-ativo" aria-current="page"><span>Banco de dados</span><span>Aula</span></a>
+            <a class="item"><span>Fundamentos do streaming de conteúdo escalável</span><span>Aula</span></a></div></div>
+        <div class="secao"><div class="cab"><div>Patterns de Desenvolvimento Enterprise</div><div>3 aulas</div></div>
+          <div class="itens"><a class="item"><span>Domain Driven Design - DDD</span><span>Aula</span></a></div></div></aside>
+      <main><video></video><div><span>00:00</span><span>Passo 2 da primeira parte agora a gente vai começar</span><button>Mostrar transcrição</button></div>
+        <h1 style="font-size:32px">Banco de dados</h1><p>Neste vídeo vamos fazer o setup do banco de dados utilizando Prisma.</p></main>
+      <script>window.tocar = () => fetch("https://stream.video-teste.com/abc.m3u8?token=t1").then((r) => r.text())</script></body></html>`
+    await context.route('https://techleads.club/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: TECHLEADS }))
+    await context.route('https://stream.video-teste.com/**', (route) =>
+      route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' }),
+    )
+    // A aula da Full Cycle (print de 20/11): o caminho "Meus Cursos › Curso Full Cycle 4.0 - Upgrade › DevSecOps ›
+    // DevSecOps na Prática", a aula num <select> e na lista dos capítulos (sanfonas), o player num iframe.
+    const FULLCYCLE = `<!doctype html><html><head><title>Full Cycle</title></head><body>
+      <header><a>Meus Cursos</a><a>Livro Full Cycle</a><a>Fórum</a></header>
+      <div class="trilha"><a>Meus Cursos</a><i>›</i><a>Curso Full Cycle 4.0 - Upgrade</a><i>›</i><a>DevSecOps</a><i>›</i><span>DevSecOps na Prática</span></div>
+      <div class="esq"><select><option selected>Conceitos Básicos</option><option>Introducao</option><option>Workflow</option></select>
+        <iframe id="player" src="https://player.video-teste.com/embed/9"></iframe></div>
+      <div class="dir"><button>Mostrar Transcrição</button>
+        <div class="capitulo"><button aria-expanded="true"><i></i><span>Conceitos Básicos de Pipelines</span></button>
+          <div class="aulas"><div class="aula"><i></i><a class="atual">Conceitos Básicos</a><span>15:50</span></div></div></div>
+        <div class="capitulo"><button aria-expanded="true"><i></i><span>GitHub Actions na Prática</span></button>
+          <div class="aulas"><div class="aula"><i></i><a>Introducao</a><span>09:26</span></div><div class="aula"><i></i><a>Workflow</a><span>05:14</span></div></div></div></div>
+      </body></html>`
+    await context.route('https://plataforma.fullcycle.com.br/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: FULLCYCLE }))
+    await context.route('https://player.video-teste.com/**', (route) => {
+      const u = new URL(route.request().url())
+      if (u.pathname === '/embed/9')
+        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>window.tocar = () => fetch("/hls/9/master.m3u8?s=x").then((r) => r.text())</script>' })
+      return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' })
+    })
+    // Um site qualquer com um player HLS: o player.js roda lá, mas não conta nada (não é aula de curso).
+    await context.route('https://videos.exemplo.com/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Vídeos</title><iframe id="player" src="https://player.video-teste.com/embed/9"></iframe>' }),
+    )
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))
     let [servico] = context.serviceWorkers()
     if (!servico) servico = await context.waitForEvent('serviceworker')

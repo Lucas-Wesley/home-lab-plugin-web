@@ -38,6 +38,17 @@ test('tamanho e duração para o popup', () => {
   assert.equal(A.duracaoLegivel(1214), '20 min')
 })
 
+test('Full Cycle e Tech Leads Club: a chave do curso, o curso pelo endereço e pelo caminho (E17)', () => {
+  assert.equal(A.chaveDoCurso('https://plataforma.fullcycle.com.br/courses/3b8c/370/catalog/214/lessons/9'), 'plataforma.fullcycle.com.br/courses/3b8c/370/catalog/214')
+  assert.equal(A.chaveDoCurso('https://techleads.club/c/fundamentos-enterprise/sections/1/lessons/2'), 'techleads.club/c/fundamentos-enterprise')
+  assert.equal(A.cursoDoEndereco('https://techleads.club/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/1', ['Banco de dados', '[Curso] Fundamentos do Desenvolvimento de Software Enterprise']), 'Fundamentos do Desenvolvimento de Software Enterprise')
+  assert.equal(A.cursoDoEndereco('https://techleads.club/c/feed', ['Feed']), '')
+  assert.equal(A.cursoDoCaminho(['Meus Cursos', '›', 'Curso Full Cycle 4.0 - Upgrade', 'DevSecOps', 'DevSecOps na Prática']), 'DevSecOps na Prática')
+  assert.equal(A.cursoDoCaminho(['Meus Cursos', 'DevSecOps', 'Conceitos Básicos'], 'Conceitos Básicos'), 'DevSecOps')
+  assert.ok(A.NAO_E_AULA.test('6 de 69 concluídos') && A.NAO_E_AULA.test('3 aulas') && A.NAO_E_AULA.test('15:50'))
+  assert.ok(A.CONTAGEM.test('3 aulas') && !A.CONTAGEM.test('Aula 6'))
+})
+
 test('o nome da aula é o texto repetido ou marcado como atual (E15)', () => {
   const t = (texto, fonte = 14, ativo = false) => ({ texto, fonte, ativo })
   // Branas.io: no alto (letra grande) e marcado na lista; o módulo aberto também vem "ativo".

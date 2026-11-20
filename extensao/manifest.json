@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.8.1",
-  "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos da Branas.io e da LINUXtips, baixa a aula para a Trilha: pelo popup, pelo botão direito ou pelo botão discreto na página.",
+  "version": "1.9.0",
+  "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos da Branas.io, LINUXtips, Full Cycle e Tech Leads Club, baixa a aula para a Trilha: pelo popup, pelo botão direito ou pelo botão discreto na página.",
   "icons": {
     "16": "icones/16.png",
     "32": "icones/32.png",
@@ -48,11 +48,16 @@
     },
     {
       "matches": [
-        "https://iframe.mediadelivery.net/*",
-        "https://*.tv.pandavideo.com.br/*"
+        "https://*/*"
+      ],
+      "exclude_matches": [
+        "https://192.168.1.20/*",
+        "https://*.internal/*"
       ],
       "all_frames": true,
+      "match_about_blank": true,
       "js": [
+        "destinos.js",
         "aulas.js",
         "player.js"
       ],

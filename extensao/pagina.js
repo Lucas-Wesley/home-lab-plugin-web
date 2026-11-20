@@ -1,4 +1,4 @@
-// O botão nas páginas: nos cursos (Branas.io, LINUXtips), coleta como o vídeo chega (E14); num vídeo do YouTube, manda à Trilha (E13); numa página com frases de exemplo
+// O botão nas páginas: nos cursos (Branas.io, LINUXtips, Full Cycle, Tech Leads Club), coleta como o vídeo chega (E14); num vídeo do YouTube, manda à Trilha (E13); numa página com frases de exemplo
 // com áudio, de qualquer site, manda ao Flashcards; num PDF, manda o arquivo à Biblioteca (E12). Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
@@ -243,10 +243,13 @@
   // para o Lucas não digitar. Os sites não têm marcação comum, então vale o que se vê:
   // - aula: o texto que aparece duas vezes (no alto da aula e marcado na lista do módulo) ou o item
   //   marcado como atual (escolherTitulo, em aulas.js); sem isso, o primeiro <h1>/<h2>;
-  // - módulo: o cabeçalho de seção logo antes do grupo onde a aula está na lista;
-  // - curso: o texto logo antes do "0% concluído" (Branas.io); na LINUXtips, o nome do treinamento
-  //   na URL. O nome que o Lucas escrever para o curso fica lembrado. O popup deixa corrigir tudo.
-  const { GENERICOS, PARECE_MODULO, PROGRESSO, NAO_E_AULA, escolherTitulo, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
+  // - módulo: o cabeçalho de seção logo antes do grupo onde a aula está na lista ("Módulo 1 …", o
+  //   nome ao lado de "3 aulas", ou o botão/título que abre a sanfona);
+  // - curso: o texto logo antes do "0% concluído" (Branas.io); o caminho de navegação "Meus Cursos ›
+  //   … › curso" (Full Cycle); o texto igual ao curso da URL /c/<curso> (Tech Leads Club); na LINUXtips,
+  //   o nome do treinamento na URL. O nome que o Lucas escrever para o curso fica lembrado. O popup
+  //   deixa corrigir tudo.
+  const { GENERICOS, PARECE_MODULO, PROGRESSO, NAO_E_AULA, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
   const textoDe = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim()
   // Só o texto do próprio elemento, sem o dos filhos ("MODULO 1 - …" sem o "1h 13min 1/10" ao lado).
   const textoProprio = (el) =>
@@ -279,6 +282,11 @@
       if (texto.length > 150 || !visivel(el)) continue
       lista.push({ el, texto })
     }
+    // A aula escolhida num <select> ("Conceitos Básicos" no alto da Full Cycle): a opção não tem caixa própria.
+    for (const sel of document.querySelectorAll('select')) {
+      const opcao = sel.selectedOptions?.[0]
+      if (opcao && visivel(sel) && textoDe(opcao)) lista.push({ el: sel, texto: textoDe(opcao) })
+    }
     return lista
   }
 
@@ -294,26 +302,46 @@
     return tituloLimpo(document.title)
   }
 
-  // O texto de módulo dentro de um cabeçalho: o próprio, ou o do filho que parece módulo.
+  // O texto de módulo dentro de um cabeçalho: o próprio, ou o do filho que parece módulo; o nome
+  // ao lado da contagem ("Patterns de Desenvolvimento Enterprise · 3 aulas"); ou o título/botão de
+  // uma sanfona ("Conceitos Básicos de Pipelines").
+  const nomeEm = (el) => {
+    for (const filho of [el, ...el.querySelectorAll('*')]) {
+      const p = textoProprio(filho)
+      if (p && p.length > 2 && !NAO_E_AULA.test(p) && !CONTAGEM.test(p) && /\p{L}{3}/u.test(p)) return p
+    }
+    return ''
+  }
+  const CABECALHO = 'h2, h3, h4, h5, h6, summary, button, [role="button"], [aria-expanded]'
   function moduloEm(el) {
     const t = textoDe(el)
     if (t.length < 120 && PARECE_MODULO.test(t) && !/\d\s*\/\s*\d+$/.test(t)) return t
     for (const filho of el.querySelectorAll('*')) {
       const p = textoProprio(filho)
-      if (p && PARECE_MODULO.test(p)) return textoDe(filho)
+      // Só "Aula" (o rótulo do item da Tech Leads Club) não é módulo.
+      if (p && PARECE_MODULO.test(p) && !GENERICOS.test(p)) return textoDe(filho)
     }
+    if ([el, ...el.querySelectorAll('*')].some((f) => CONTAGEM.test(textoProprio(f)))) return nomeEm(el)
+    if (t.length < 150 && (el.matches(CABECALHO) || el.querySelector(CABECALHO))) return nomeEm(el)
     return ''
   }
+
+  const primeiraClasse = (el) => (typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '')
 
   function moduloDaAula(titulo, textos) {
     if (!titulo) return ''
     const alvo = titulo.toLowerCase()
     // As vezes em que o nome da aula aparece; o cabeçalho do módulo fica antes do grupo de uma delas.
-    for (const { el, texto } of textos) {
-      if (texto.toLowerCase() !== alvo) continue
+    // Primeiro a vez da lista lateral (o cabeçalho do módulo fica lá); o título no alto e o <select> por último.
+    const LISTA = 'li, ul, ol, aside, nav, [role="list"], [role="listitem"], [role="tree"], [role="treeitem"]'
+    const ordem = ({ el }) => (el.tagName === 'SELECT' ? 2 : el.closest(LISTA) || marcadoComoAtual(el) ? 0 : 1)
+    const vezes = textos.filter(({ texto }) => texto.toLowerCase() === alvo).sort((a, b) => ordem(a) - ordem(b))
+    for (const { el } of vezes) {
       let atual = el
       for (let nivel = 0; atual && nivel < 8; nivel++, atual = atual.parentElement) {
         for (let irmao = atual.previousElementSibling, n = 0; irmao && n < 3; irmao = irmao.previousElementSibling, n++) {
+          // Um irmão do mesmo tipo é outra aula da lista, não o cabeçalho.
+          if (irmao.tagName === atual.tagName && primeiraClasse(irmao) === primeiraClasse(atual)) continue
           const t = moduloEm(irmao)
           if (t && t.toLowerCase() !== alvo) return t
         }
@@ -335,6 +363,25 @@
     return ''
   }
 
+  // O caminho de navegação ("Meus Cursos › … › curso"): o marcado como breadcrumb ou o bloco onde
+  // está o "Meus Cursos".
+  function cursoDoCaminhoDaPagina(titulo) {
+    let caminho = document.querySelector('nav[aria-label*="breadcrumb" i], [class*="breadcrumb" i], [aria-label*="breadcrumb" i]')
+    if (!caminho) {
+      // O "Meus Cursos" do caminho é o último (o primeiro costuma ser o do menu do site).
+      const inicio = [...document.querySelectorAll("a, span, li, div")].findLast((el) => /^meus cursos$/i.test(textoProprio(el)) && visivel(el))
+      for (let a = inicio?.parentElement, n = 0; a && n < 4; a = a.parentElement, n++) {
+        if (a.querySelectorAll('a').length >= 2 || a.children.length >= 3) {
+          caminho = a
+          break
+        }
+      }
+    }
+    if (!caminho) return ''
+    const itens = [...caminho.querySelectorAll('*')].filter((el) => textoProprio(el) && visivel(el)).map(textoProprio)
+    return cursoDoCaminho(itens, titulo)
+  }
+
   function aulaDaPagina() {
     const curso = cursoDaPagina(location.href)
     if (!curso) return null
@@ -345,7 +392,7 @@
       nomePlataforma: curso.nome,
       titulo,
       modulo: moduloDaAula(titulo, textos),
-      curso: cursoDaAula(textos),
+      curso: cursoDaAula(textos) || cursoDoCaminhoDaPagina(titulo) || cursoDoEndereco(location.href, textos.map((t) => t.texto)),
       pagina: location.href,
       chaveCurso: chaveDoCurso(location.href),
       cursoPadrao: cursoPadrao(location.href),

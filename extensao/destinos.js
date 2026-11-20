@@ -20,10 +20,12 @@
   const HISTORICO_MAXIMO = 50
 
   // Os cursos de outras plataformas (E14): nas páginas deles, o botão vira "Analisar vídeo", que coleta
-  // como o vídeo chega (só a coleta, nada é baixado). Os donos dos dois cursos autorizaram o Lucas.
+  // como o vídeo chega (só a coleta, nada é baixado). Os donos da Branas.io e da LINUXtips autorizaram o Lucas; na Full Cycle e na Tech Leads Club ele é aluno.
   const CURSOS = {
     branas: { nome: 'Branas.io', hosts: ['branas.io'] },
     linuxtips: { nome: 'LINUXtips', hosts: ['linuxtips.io'] },
+    fullcycle: { nome: 'Full Cycle', hosts: ['fullcycle.com.br'] },
+    techleads: { nome: 'Tech Leads Club', hosts: ['techleads.club'] },
   }
 
   // cursoDaPagina: o curso da página (o id em CURSOS) e o endereço base dele, ou null.
