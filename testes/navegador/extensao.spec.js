@@ -203,7 +203,7 @@ test('na aula de um curso, o botão coleta o tráfego do player e salva o relat�
   await expect(page.locator('homelab-envio .texto')).toContainText('Coletando', { timeout: 5000 })
   // O player (iframe de outro site) pede o manifesto e um pedaço, como ao dar play.
   await page.frameLocator('#player').locator('video').waitFor({ state: 'attached' })
-  await page.frames().find((f) => f.url().includes('player.exemplo.com')).evaluate(() => window.tocar())
+  await page.frames().find((f) => f.url().includes('player-vz-teste.tv.pandavideo.com.br')).evaluate(() => window.tocar())
   await expect(page.locator('homelab-envio .texto')).toContainText('2 de vídeo', { timeout: 8000 })
 
   const [download] = await Promise.all([page.waitForEvent('download'), botao(page).click()])
@@ -213,10 +213,61 @@ test('na aula de um curso, o botão coleta o tráfego do player e salva o relat�
   const relatorio = JSON.parse(await (await import('node:fs/promises')).readFile(await download.path(), 'utf8'))
   expect(relatorio.curso).toBe('branas')
   expect(relatorio.resumo.veredito).toBe('aes128')
-  expect(relatorio.quadros.some((q) => q.tipo === 'iframe' && q.url.includes('player.exemplo.com'))).toBe(true)
+  expect(relatorio.quadros.some((q) => q.tipo === 'iframe' && q.url.includes('player-vz-teste.tv.pandavideo.com.br'))).toBe(true)
   const manifesto = relatorio.pedidos.find((p) => p.tipo === 'manifesto-hls')
   expect(manifesto.corpo).toContain('#EXT-X-KEY:METHOD=AES-128')
   expect(manifesto.cabecalhosPedido.Authorization).toBe('[omitido]')
   expect(relatorio.videos.length).toBe(1)
   expect(relatorio.pedidos.some((p) => p.recurso === 'Document' && p.url.startsWith('https://app.branas.io/'))).toBe(true)
+})
+
+test('na aula de um curso, o popup lê o nome da aula e do módulo e manda baixar na Trilha (E15)', async ({ page, context, apps, extensao }) => {
+  await page.goto('https://app.branas.io/users/u/products/p1/contents/c6')
+  await expect(botao(page)).toBeVisible()
+  // O player pede o manifesto (como ao dar play); o player.js conta ao serviço.
+  await page.frameLocator('#player').locator('video').waitFor({ state: 'attached' })
+  await page.frames().find((f) => f.url().includes('pandavideo')).evaluate(() => window.tocar())
+
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#aula')).toBeVisible()
+  await expect(popup.locator('#aula-plataforma')).toHaveText('Branas.io')
+  await expect(popup.locator('#aula-titulo')).toHaveValue('Arquitetura de Microservices')
+  await expect(popup.locator('#aula-modulo')).toHaveValue('Aula 6 (02/03/2026 às 19:00)')
+  await expect(popup.locator('#aula-info')).toHaveText('720p (a maior) · 2 h 01 min · cerca de 400 MB · 50 GB livres')
+  const estimar = apps.recebidos.find((r) => r.caminho === '/api/cursos/estimar')
+  expect(estimar.corpo.manifesto).toBe('https://player-vz-teste.tv.pandavideo.com.br/v/1/playlist.m3u8?token=abc')
+  expect(estimar.corpo.referer).toBe('https://player-vz-teste.tv.pandavideo.com.br/')
+
+  // Sem nome de curso, não manda; com ele, manda e lembra o nome para as próximas aulas.
+  await popup.getByRole('button', { name: 'Baixar esta aula' }).click()
+  await expect(popup.locator('#aula-info')).toHaveText('Escreva o nome do curso e o da aula.')
+  await popup.locator('#aula-curso').fill('Clean Code e Arquitetura')
+  await popup.getByRole('button', { name: 'Baixar esta aula' }).click()
+  await expect(popup.locator('#aula-resultado')).toContainText('Na fila de downloads da Trilha')
+  await expect(popup.locator('#aula-resultado a')).toHaveAttribute('href', `${apps.endereco}/#/entrada/cursos`)
+  const pedido = apps.recebidos.find((r) => r.caminho === '/api/cursos/aulas')
+  expect(pedido.corpo).toEqual({
+    plataforma: 'branas',
+    curso: 'Clean Code e Arquitetura',
+    modulo: 'Aula 6 (02/03/2026 às 19:00)',
+    titulo: 'Arquitetura de Microservices',
+    pagina: 'https://app.branas.io/users/u/products/p1/contents/c6',
+    manifesto: 'https://player-vz-teste.tv.pandavideo.com.br/v/1/playlist.m3u8?token=abc',
+    referer: 'https://player-vz-teste.tv.pandavideo.com.br/',
+  })
+  await popup.reload()
+  await expect(popup.locator('#aula-curso')).toHaveValue('Clean Code e Arquitetura')
+  await expect(popup.locator('#historico li').first()).toContainText('Arquitetura de Microservices')
+})
+
+test('na aula sem play, o popup pede para dar play (E15)', async ({ page, context, extensao }) => {
+  await page.goto('https://app.branas.io/users/u/products/p1/contents/c6')
+  await expect(botao(page)).toBeVisible()
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#aula-info')).toHaveText('Ainda não achei o vídeo: dê play na aula e procure de novo.')
+  await expect(popup.getByRole('button', { name: 'Baixar esta aula' })).toBeDisabled()
 })

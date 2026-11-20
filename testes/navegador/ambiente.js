@@ -50,6 +50,13 @@ function appsFalsos() {
         vistos.add('entrada:' + dados.url)
         return responder(202, [{ id: 5, estado: ja ? 'pronta' : 'na_fila' }])
       }
+      // Os cursos da Trilha (T50): a estimativa e a fila de downloads.
+      if (req.method === 'POST' && req.url === '/api/cursos/estimar') return responder(200, { qualidade: '720p', duracao: 7254, tamanho_estimado: 400 * 2 ** 20, livre: 50 * 2 ** 30, cifrado: false })
+      if (req.method === 'POST' && req.url === '/api/cursos/aulas') {
+        const ja = vistos.has('aula:' + dados.manifesto)
+        vistos.add('aula:' + dados.manifesto)
+        return ja ? responder(200, { repetida: true, aula: { id: 9, estado: 'na_fila' } }) : responder(202, { aula: { id: 9, estado: 'na_fila' } })
+      }
       if (req.method === 'GET' && req.url === '/api/baralhos') return responder(200, [{ id: 'b2', nome: 'Bandeiras' }, { id: 'b1', nome: 'Inglês' }])
       if (req.method === 'POST' && req.url === '/api/links') return responder(201, { id: 7, origem: 'link', estado: 'na_fila' })
       responder(404, { erro: 'não encontrado' })
@@ -110,14 +117,14 @@ export const test = base.extend({
     })
     // A aula de um curso (E14): a página carrega o player num iframe de outro site, que pede um HLS com AES-128.
     await context.route('https://app.branas.io/**', (route) =>
-      route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Arquitetura de Microservices</title></head><body><h1>Arquitetura de Microservices</h1><iframe id="player" src="https://player.exemplo.com/embed/1"></iframe></body></html>' }),
+      route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><head><title>Arquitetura de Microservices</title></head><body><aside><div><p>Aula 2 (19/01/2026 às 19:00)</p><ul><li>Arquitetura Hexagonal</li></ul></div><div><p>Aula 6 (02/03/2026 às 19:00)</p><ul><li>Assistir aula completa</li><li><span>Arquitetura de Microservices</span></li></ul></div></aside><main><h1>Arquitetura de Microservices</h1><iframe id="player" src="https://player-vz-teste.tv.pandavideo.com.br/embed/1"></iframe></main></body></html>' }),
     )
-    await context.route('https://player.exemplo.com/**', (route) => {
+    await context.route('https://player-vz-teste.tv.pandavideo.com.br/**', (route) => {
       const u = new URL(route.request().url())
       if (u.pathname === '/embed/1')
         return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>window.tocar = () => fetch("/v/1/playlist.m3u8?token=abc", { headers: { Authorization: "Bearer segredo" } }).then((r) => r.text()).then(() => fetch("/v/1/seg_001.ts"))</script>' })
       if (u.pathname.endsWith('.m3u8'))
-        return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="https://player.exemplo.com/keys/k1"\n#EXTINF:6.0,\nseg_001.ts\n' })
+        return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="https://player-vz-teste.tv.pandavideo.com.br/keys/k1"\n#EXTINF:6.0,\nseg_001.ts\n' })
       return route.fulfill({ contentType: 'video/mp2t', body: Buffer.alloc(1000, 1) })
     })
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))

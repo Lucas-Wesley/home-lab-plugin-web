@@ -3,7 +3,7 @@
 Extensão do Chrome (Manifest V3) do **ecossistema de apps pessoais do Lucas**: um botão discreto
 nas páginas que manda o link ao app certo (vídeo do YouTube → Trilha, E13; página com frases de exemplo → Flashcards);
 pelo popup e pelo botão direito, qualquer página ou link vai ao Acervo ou ao Flashcards (E10), e um PDF vai à
-Biblioteca (E12); nas aulas da Branas.io e da LINUXtips, coleta como o vídeo chega (E14). É um
+Biblioteca (E12); nas aulas da Branas.io e da LINUXtips, coleta como o vídeo chega (E14) e, pelo popup, manda baixar a aula na Trilha (E15). É um
 **cliente** dos apps, sem banco nem servidor próprio.
 
 **Comece lendo:** [`docs/DECISOES.md`](docs/DECISOES.md).
@@ -11,7 +11,7 @@ Biblioteca (E12); nas aulas da Branas.io e da LINUXtips, coleta como o vídeo ch
 ## Contexto do ecossistema
 Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley/hub-home-lab-web`
 (pasta `docs/`). A extensão usa as APIs que os apps já têm (`POST /api/entrada` da Trilha, `POST /api/referencias` do Acervo,
-`POST /api/links` e `GET /api/baralhos` do Flashcards, `POST /api/books` da Biblioteca): mudar uma delas é mudar
+`POST /api/links` e `GET /api/baralhos` do Flashcards, `POST /api/books` da Biblioteca, `POST /api/cursos/estimar` e `POST /api/cursos/aulas` da Trilha): mudar uma delas é mudar
 os dois lados.
 
 ## Regras e convenções (IMPORTANTE)

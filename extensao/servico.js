@@ -1,7 +1,7 @@
 // O serviço da extensão: recebe o pedido da página, manda o link ao app certo e guarda o histórico.
 // Quem chama os apps é ele, não a página: com a permissão do endereço do homelab, o Chrome deixa
 // a extensão falar com eles sem CORS.
-importScripts('destinos.js', 'coleta.js')
+importScripts('destinos.js', 'coleta.js', 'aulas.js')
 
 const { ENDERECOS_PADRAO, APPS, acoesDaPagina, baralhoPadrao, pedidoPara, resultadoDaResposta, acrescentar } = globalThis.Destinos
 
@@ -133,6 +133,83 @@ chrome.contextMenus.onClicked.addListener(async (info, aba) => {
   // Num link, o título é o texto dele (quando o Chrome dá) ou o próprio endereço.
   const titulo = info.linkUrl ? info.selectionText || info.linkUrl : aba?.title
   sinalizar(await enviar({ app: acao.app, url: acao.url, titulo }))
+})
+
+// Baixar a aula do curso (E15): o player.js conta os manifestos HLS de cada aba (guardados aqui,
+// na sessão do navegador: o serviço pode dormir entre a aula tocar e o Lucas abrir o popup); o
+// popup pede a estimativa e o download à Trilha (T50 de lá), que baixa no servidor.
+const { escolherManifesto } = globalThis.Aulas
+
+async function manifestosDaAba(aba) {
+  const chave = `manifestos:${aba}`
+  return (await chrome.storage.session.get(chave))[chave] || []
+}
+
+// Uma gravação por vez: o player pede o mestre e a variante quase juntos (ler, mudar e gravar ao
+// mesmo tempo perderia um).
+let gravando = Promise.resolve()
+function guardarManifesto(aba, { url, referer }) {
+  gravando = gravando.then(async () => {
+    const chave = `manifestos:${aba}`
+    const lista = (await manifestosDaAba(aba)).filter((m) => m.url !== url)
+    lista.push({ url, referer, quando: Date.now() })
+    await chrome.storage.session.set({ [chave]: lista.slice(-20) })
+  }).catch(() => {})
+  return gravando
+}
+
+// A página recarregou ou fechou: os manifestos da aula anterior não valem mais.
+chrome.tabs.onUpdated.addListener((aba, mudou) => {
+  if (mudou.status === 'loading') chrome.storage.session.remove(`manifestos:${aba}`)
+})
+chrome.tabs.onRemoved.addListener((aba) => chrome.storage.session.remove(`manifestos:${aba}`))
+
+async function aulaDaAba(aba) {
+  const aula = await chrome.tabs.sendMessage(aba, { tipo: 'aulaDoCurso' }).catch(() => null)
+  if (!aula) return { erro: 'Recarregue a página da aula e abra o popup de novo.' }
+  const m = escolherManifesto(await manifestosDaAba(aba))
+  if (!m) return { aula, semVideo: true }
+  const { enderecos } = await ajustes()
+  try {
+    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/estimar', { metodo: 'POST', corpo: { manifesto: m.url, referer: m.referer, pagina: aula.pagina } })
+    if (status !== 200) return { aula, manifesto: m, erro: dados?.erro || `A Trilha respondeu ${status}` }
+    return { aula, manifesto: m, estimativa: dados }
+  } catch {
+    return { aula, manifesto: m, erro: 'Sem conexão com a Trilha: só funciona na rede de casa.' }
+  }
+}
+
+async function baixarAula(pedido) {
+  const { enderecos } = await ajustes()
+  const base = enderecos.trilha.replace(/\/+$/, '')
+  let resultado
+  try {
+    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
+    const abrir = `${base}/#/entrada/cursos`
+    if (status === 202) resultado = { estado: 'enviado', mensagem: 'Na fila de downloads da Trilha', abrir }
+    else if (status === 200 && dados?.repetida) resultado = { estado: 'repetido', mensagem: dados.aula?.estado === 'pronta' ? 'Esta aula já foi baixada' : 'Esta aula já está na fila', abrir }
+    else resultado = { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}`, abrir: '' }
+  } catch {
+    resultado = { estado: 'erro', mensagem: 'Sem conexão com a Trilha: só funciona na rede de casa.', abrir: '' }
+  }
+  await guardarNoHistorico({ app: 'trilha', url: pedido.pagina, titulo: pedido.titulo, resultado })
+  return resultado
+}
+
+chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
+  if (mensagem?.tipo === 'manifestoVisto' && remetente.tab?.id) {
+    guardarManifesto(remetente.tab.id, mensagem).then(() => responder(true))
+    return true
+  }
+  if (mensagem?.tipo === 'aulaDaAba') {
+    aulaDaAba(mensagem.aba).then(responder)
+    return true
+  }
+  if (mensagem?.tipo === 'baixarAula') {
+    baixarAula(mensagem.pedido).then(responder)
+    return true
+  }
+  return false
 })
 
 // A coleta do vídeo nos cursos (E14): com o depurador do Chrome (a barra "Homelab começou a depurar

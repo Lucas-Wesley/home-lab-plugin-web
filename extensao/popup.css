@@ -204,3 +204,28 @@ button:disabled {
   margin: -4px 0 10px;
   font-size: 12px;
 }
+
+#aula {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--linha);
+}
+
+#aula label {
+  margin-bottom: 8px;
+}
+
+.aula-info {
+  margin: 2px 0 10px;
+  font-size: 12.5px;
+}
+
+.aula-resultado {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+}
+
+.aula-resultado a {
+  color: var(--azul);
+  font-weight: 600;
+}

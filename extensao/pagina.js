@@ -239,6 +239,60 @@
     if (novo.app === 'coleta') chrome.runtime.sendMessage({ tipo: 'coletaEstado' }).then(mostrarColeta).catch(() => {})
   }
 
+  // A aula aberta num dos cursos (E15): o nome dela, o do módulo (o cabeçalho da seção da barra
+  // lateral onde ela está) e o endereço. Os sites não têm marcação comum: o título é o primeiro
+  // <h1>/<h2> visível que não seja o nome do site; o módulo, o texto curto logo antes do grupo
+  // onde o título da aula se repete. O popup deixa corrigir os dois.
+  const { GENERICOS, PARECE_MODULO, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
+  const textoDe = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim()
+  const visivel = (el) => {
+    const r = el.getBoundingClientRect()
+    return r.width > 0 && r.height > 0
+  }
+
+  function tituloDaAula() {
+    for (const sel of ['main h1', 'h1', 'main h2', 'h2']) {
+      for (const el of document.querySelectorAll(sel)) {
+        const t = textoDe(el)
+        if (visivel(el) && t.length > 2 && t.length < 200 && !GENERICOS.test(t)) return { texto: t, el }
+      }
+    }
+    return { texto: tituloLimpo(document.title), el: null }
+  }
+
+  function moduloDaAula(titulo, cabecalho) {
+    if (!titulo) return ''
+    // O item da barra lateral com o mesmo texto da aula (não o próprio título da página).
+    const itens = [...document.querySelectorAll('a, li, button, span, p, div')].filter(
+      (el) => el !== cabecalho && !el.contains(cabecalho) && textoDe(el) === titulo && !el.querySelector('a, li, button'),
+    )
+    for (const item of itens) {
+      let atual = item
+      for (let nivel = 0; atual && nivel < 8; nivel++, atual = atual.parentElement) {
+        for (let irmao = atual.previousElementSibling, n = 0; irmao && n < 3; irmao = irmao.previousElementSibling, n++) {
+          const t = textoDe(irmao)
+          if (t && t.length < 120 && t !== titulo && PARECE_MODULO.test(t)) return t
+        }
+      }
+    }
+    return ''
+  }
+
+  function aulaDaPagina() {
+    const curso = cursoDaPagina(location.href)
+    if (!curso) return null
+    const { texto, el } = tituloDaAula()
+    return {
+      plataforma: curso.curso,
+      nomePlataforma: curso.nome,
+      titulo: texto,
+      modulo: moduloDaAula(texto, el),
+      pagina: location.href,
+      chaveCurso: chaveDoCurso(location.href),
+      cursoPadrao: cursoPadrao(location.href),
+    }
+  }
+
   // O popup do ícone pergunta o que esta página pode fazer (E10: qualquer página vai ao Acervo ou
   // ao Flashcards) e pede para enviar a um dos apps; o resultado aparece no botão.
   chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
@@ -251,6 +305,10 @@
         responder({ titulo: tituloDaPagina(), acoes: acoes.map((a) => ({ app: a.app, acao: APPS[a.app].acao })) })
         destino = antes
       }
+      return false
+    }
+    if (mensagem?.tipo === 'aulaDoCurso') {
+      responder(aulaDaPagina())
       return false
     }
     if (mensagem?.tipo === 'enviarDaqui') {

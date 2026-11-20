@@ -1,19 +1,62 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.7.1",
-  "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos, analisa como o vídeo chega: pelo popup, pelo botão direito ou pelo botão discreto na página.",
-  "icons": { "16": "icones/16.png", "32": "icones/32.png", "48": "icones/48.png", "128": "icones/128.png" },
-  "action": { "default_title": "Homelab", "default_popup": "popup.html", "default_icon": { "16": "icones/16.png", "32": "icones/32.png" } },
-  "background": { "service_worker": "servico.js" },
-  "permissions": ["storage", "contextMenus", "debugger"],
-  "host_permissions": ["https://192.168.1.20/*", "https://*.internal/*"],
+  "version": "1.8.0",
+  "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos da Branas.io e da LINUXtips, baixa a aula para a Trilha: pelo popup, pelo botão direito ou pelo botão discreto na página.",
+  "icons": {
+    "16": "icones/16.png",
+    "32": "icones/32.png",
+    "48": "icones/48.png",
+    "128": "icones/128.png"
+  },
+  "action": {
+    "default_title": "Homelab",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icones/16.png",
+      "32": "icones/32.png"
+    }
+  },
+  "background": {
+    "service_worker": "servico.js"
+  },
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "debugger"
+  ],
+  "host_permissions": [
+    "https://192.168.1.20/*",
+    "https://*.internal/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://*/*", "http://*/*"],
-      "exclude_matches": ["https://192.168.1.20/*", "https://*.internal/*"],
-      "js": ["destinos.js", "pagina.js"],
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "exclude_matches": [
+        "https://192.168.1.20/*",
+        "https://*.internal/*"
+      ],
+      "js": [
+        "destinos.js",
+        "aulas.js",
+        "pagina.js"
+      ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://iframe.mediadelivery.net/*",
+        "https://*.tv.pandavideo.com.br/*"
+      ],
+      "all_frames": true,
+      "js": [
+        "aulas.js",
+        "player.js"
+      ],
+      "run_at": "document_start"
     }
   ]
 }
