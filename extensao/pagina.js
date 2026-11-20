@@ -1,4 +1,4 @@
-// O botão nas páginas: num vídeo do YouTube, manda ao Acervo; numa página com frases de exemplo
+// O botão nas páginas: num vídeo do YouTube, manda à Trilha (E13); numa página com frases de exemplo
 // com áudio, de qualquer site, manda ao Flashcards; num PDF, manda o arquivo à Biblioteca (E12). Pelo popup, qualquer página vai a um dos dois (E10). Um círculo pequeno no canto de baixo, que mostra o nome
 // ao abrir a página (alguns segundos) e ao passar o mouse, e o resultado depois de enviar. Fica num
 // Shadow DOM, longe do CSS do site. O popup do ícone também envia, pedindo a este script (E8).
@@ -9,6 +9,7 @@
     acervo: '<path d="M4 5.5A1.5 1.5 0 015.5 4H10v16H5.5A1.5 1.5 0 014 18.5zM10 4h4v16h-4zM14.5 5l4-1 2.5 15-4 1z"/>',
     biblioteca: '<path d="M5 4.5A1.5 1.5 0 016.5 3H18v15H6.5A1.5 1.5 0 005 19.5zM5 19.5A1.5 1.5 0 006.5 21H18v-3M9 7h5"/>',
     flashcards: '<path d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zM5 12h14"/><path d="M10.4 7.3a1.7 1.7 0 013.2.5c0 1-1.6 1.2-1.6 2M8.5 15.3h7M8.5 17.3h4"/>',
+    trilha: '<path d="M5 19V9M12 19V5M19 19v-7"/>',
     feito: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     erro: '<path d="M12 7v6M12 16.5h.01"/><circle cx="12" cy="12" r="9"/>',
   }

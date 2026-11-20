@@ -5,20 +5,20 @@ const botao = (page) => page.locator('homelab-envio button')
 const ultimaAba = (context) =>
   context.servico.evaluate(async () => (await chrome.tabs.query({})).reduce((a, b) => (b.id > a.id ? b : a)))
 
-test('no vídeo do YouTube, o botão manda o link ao Acervo', async ({ page, apps }) => {
+test('no vídeo do YouTube, o botão manda o link à Entrada da Trilha, no automático (E13)', async ({ page, apps }) => {
   await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1&t=42s')
   await expect(botao(page)).toBeVisible()
-  await expect(botao(page)).toHaveAttribute('aria-label', 'Mandar ao Acervo')
+  await expect(botao(page)).toHaveAttribute('aria-label', 'Mandar à Trilha')
 
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Na fila do Acervo')
-  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/referencia/r1`)
-  const pedido = apps.recebidos.find((r) => r.caminho === '/api/referencias')
-  expect(pedido.corpo).toEqual({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Entrada: a IA divide e sugere as trilhas')
+  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/entrada/5`)
+  const pedido = apps.recebidos.find((r) => r.caminho === '/api/entrada')
+  expect(pedido.corpo).toEqual({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', automatico: true })
 
-  // De novo: o Acervo diz que já tem.
+  // De novo: a Trilha devolve o que já tem.
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Já está no Acervo')
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Já está na Entrada da Trilha')
 })
 
 test('o YouTube troca de página sem recarregar: o botão aparece e some com o vídeo', async ({ page }) => {
@@ -96,7 +96,7 @@ test('qualquer página vai ao Acervo pelo popup, como artigo (E10)', async ({ pa
 test('o popup mostra o histórico, inclusive o que falhou', async ({ page, context, extensao }) => {
   await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Na fila do Acervo')
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Entrada: a IA divide e sugere as trilhas')
 
   // O Flashcards fora do ar: o erro aparece no botão e no histórico.
   await context.servico.evaluate(async () => {
@@ -135,6 +135,8 @@ test('o nome aparece ao abrir o vídeo e o popup também envia', async ({ page, 
   await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
   await expect(popup.getByText('Nesta página')).toBeVisible()
   await expect(popup.locator('#aqui-titulo')).toHaveText('Origem da laranja')
+  // No vídeo, a Trilha primeiro e o Acervo como segunda opção.
+  await expect(popup.locator('#acoes button')).toHaveText(['Mandar à Trilha', 'Mandar ao Acervo'])
   await popup.getByRole('button', { name: 'Mandar ao Acervo' }).click()
 
   await expect(texto).toHaveText('Na fila do Acervo')

@@ -3,8 +3,9 @@
 Extensão do Chrome do **ecossistema de apps pessoais do Lucas**. Ela vê em que página você está e
 põe um botão pequeno no canto de baixo para mandar o link ao app certo:
 
-- **Vídeo do YouTube** → **Acervo**: o vídeo vira uma Referência e entra na fila (extrair →
-  organizar), como se o link fosse colado lá.
+- **Vídeo do YouTube** → **Trilha** (E13): o vídeo cai na Entrada da Trilha, que lê a legenda,
+  divide por assunto e já sugere as trilhas; você confirma e manda. O Acervo continua como segunda
+  opção, pelo popup e pelo botão direito.
 - **Página com frases de exemplo**, de qualquer site → **Flashcards**: as 3 frases mais didáticas,
   com tradução e áudio, viram uma proposta de cartões para revisar.
 - **Qualquer página ou link** (artigo, blog, site) → **Acervo** ou **Flashcards**, pelo ícone da
@@ -14,7 +15,7 @@ põe um botão pequeno no canto de baixo para mandar o link ao app certo:
   arquivo vai inteiro e vira um livro, pronto para ler.
 
 A extensão não guarda nada além do histórico do que foi enviado (os últimos 50) e dos ajustes.
-Não tem servidor próprio: fala direto com o Acervo, o Flashcards e a Biblioteca, na rede de casa.
+Não tem servidor próprio: fala direto com a Trilha, o Acervo, o Flashcards e a Biblioteca, na rede de casa.
 
 ## Instalar (uma vez)
 
@@ -38,10 +39,10 @@ As abas abertas antes disso precisam ser recarregadas.
 
 ## Usar
 
-- Num vídeo do YouTube, o círculo do canto de baixo à direita mostra **Mandar ao Acervo** nos
-  primeiros segundos (depois, passe o mouse nele). O ícone da extensão também tem esse botão, em
-  **Nesta página**. Depois de enviar, ele mostra o resultado ("Na fila do Acervo", "Já está no Acervo") e
-  o link **Abrir**.
+- Num vídeo do YouTube, o círculo do canto de baixo à direita mostra **Mandar à Trilha** nos
+  primeiros segundos (depois, passe o mouse nele). O ícone da extensão tem esse botão e **Mandar ao
+  Acervo**, em **Nesta página**. Depois de enviar, ele mostra o resultado ("Na Entrada: a IA divide e
+  sugere as trilhas", "Já está na Entrada da Trilha") e o link **Abrir**.
 - Numa página com frases de exemplo e áudio: **Fazer flashcards**. **Abrir** leva à proposta no
   Flashcards, onde dá para trocar o baralho antes de aprovar.
 - Em qualquer outra página, o ícone da extensão mostra, em **Nesta página**, **Mandar ao Acervo** e

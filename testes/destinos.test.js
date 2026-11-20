@@ -25,7 +25,7 @@ test('acha o vídeo do YouTube nos links que o Acervo aceita', () => {
 
 test('cada página vai para o seu app, com o link limpo', () => {
   assert.deepEqual(json(D.destinoDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1&t=9', false)), {
-    app: 'acervo',
+    app: 'trilha',
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   })
   assert.deepEqual(json(D.destinoDaPagina('https://blog.exemplo.com/shoot-up-o-que-significa/?utm_source=x&p=12&fbclid=y#audio', true)), {
@@ -39,8 +39,9 @@ test('cada página vai para o seu app, com o link limpo', () => {
   assert.equal(D.destinoDaPagina('chrome://extensions', true), null)
 })
 
-test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, só ao Acervo (E10)', () => {
+test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, à Trilha ou ao Acervo (E10, E13)', () => {
   assert.deepEqual(json(D.acoesDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=9')), [
+    { app: 'trilha', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     { app: 'acervo', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   ])
   assert.deepEqual(json(D.acoesDaPagina('https://blog.exemplo.com/historia-do-cafe/?utm_source=x#topo')), [
@@ -120,4 +121,16 @@ test('traduz as respostas da Biblioteca', () => {
   assert.equal(D.resultadoDaResposta('biblioteca', base, 409, { error: 'esse livro já está na biblioteca' }).estado, 'repetido')
   assert.equal(D.resultadoDaResposta('biblioteca', base, 400, { error: 'arquivo inválido' }).mensagem, 'arquivo inválido')
   assert.equal(D.pedidoPara('biblioteca', 'https://site.com/a.pdf', {}).caminho, '/api/books')
+})
+
+test('a Trilha recebe o vídeo na Entrada, no automático, e abre a fonte (E13)', () => {
+  assert.deepEqual(json(D.pedidoPara('trilha', 'u', {})), { caminho: '/api/entrada', corpo: { url: 'u', automatico: true } })
+  const trilha = 'https://trilha.internal/'
+  assert.deepEqual(json(D.resultadoDaResposta('trilha', trilha, 202, [{ id: 3, estado: 'na_fila' }])), {
+    estado: 'enviado',
+    mensagem: 'Na Entrada: a IA divide e sugere as trilhas',
+    abrir: 'https://trilha.internal/#/entrada/3',
+  })
+  assert.equal(D.resultadoDaResposta('trilha', trilha, 202, [{ id: 3, estado: 'fragmentada' }]).estado, 'repetido')
+  assert.equal(D.resultadoDaResposta('trilha', trilha, 400, { erro: 'mande o link' }).mensagem, 'mande o link')
 })

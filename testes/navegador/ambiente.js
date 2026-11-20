@@ -44,6 +44,12 @@ function appsFalsos() {
         vistos.add(dados.url)
         return responder(201, { id: 'r1', estado: 'novo' })
       }
+      // A Entrada da Trilha: 202 com a lista de fontes; o mesmo vídeo volta como está (já lido).
+      if (req.method === 'POST' && req.url === '/api/entrada') {
+        const ja = vistos.has('entrada:' + dados.url)
+        vistos.add('entrada:' + dados.url)
+        return responder(202, [{ id: 5, estado: ja ? 'pronta' : 'na_fila' }])
+      }
       if (req.method === 'GET' && req.url === '/api/baralhos') return responder(200, [{ id: 'b2', nome: 'Bandeiras' }, { id: 'b1', nome: 'Inglês' }])
       if (req.method === 'POST' && req.url === '/api/links') return responder(201, { id: 7, origem: 'link', estado: 'na_fila' })
       responder(404, { erro: 'não encontrado' })
@@ -105,7 +111,7 @@ export const test = base.extend({
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))
     let [servico] = context.serviceWorkers()
     if (!servico) servico = await context.waitForEvent('serviceworker')
-    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e, biblioteca: e } }), apps.endereco)
+    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e, biblioteca: e, trilha: e } }), apps.endereco)
     context.servico = servico
     await usar(context)
     await context.close()

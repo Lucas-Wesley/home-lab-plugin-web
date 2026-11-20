@@ -7,12 +7,14 @@
     acervo: 'https://acervo.internal',
     flashcards: 'https://flashcards.internal',
     biblioteca: 'https://biblioteca.internal',
+    trilha: 'https://trilha.internal',
   }
 
   const APPS = {
     acervo: { nome: 'Acervo', acao: 'Mandar ao Acervo' },
     flashcards: { nome: 'Flashcards', acao: 'Fazer flashcards' },
     biblioteca: { nome: 'Biblioteca', acao: 'Mandar à Biblioteca' },
+    trilha: { nome: 'Trilha', acao: 'Mandar à Trilha' },
   }
 
   const HISTORICO_MAXIMO = 50
@@ -55,11 +57,11 @@
     }
   }
 
-  // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai ao Acervo;
+  // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai à Trilha (E13);
   // um PDF vai à Biblioteca (E12); qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
   function destinoDaPagina(endereco, temExemplos, pdf = false) {
     const video = videoDoYouTube(endereco)
-    if (video) return { app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }
+    if (video) return { app: 'trilha', url: `https://www.youtube.com/watch?v=${video}` }
     let u
     try {
       u = new URL(endereco)
@@ -72,12 +74,15 @@
   }
 
   // acoesDaPagina: para onde a página (ou um link) pode ir, pelo popup ou pelo menu do botão direito
-  // (E10). O vídeo do YouTube vai ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
+  // (E10). O vídeo do YouTube vai à Trilha (a Entrada, E13) ou ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
   // Flashcards. Um PDF vai só à Biblioteca, como livro (E12). O YouTube fora de um vídeo e o que não é
   // http(s) não vão a lugar nenhum.
   function acoesDaPagina(endereco, pdf = false) {
     const video = videoDoYouTube(endereco)
-    if (video) return [{ app: 'acervo', url: `https://www.youtube.com/watch?v=${video}` }]
+    if (video) {
+      const url = `https://www.youtube.com/watch?v=${video}`
+      return [{ app: 'trilha', url }, { app: 'acervo', url }]
+    }
     let u
     try {
       u = new URL(endereco)
@@ -103,6 +108,8 @@
   // "novo" (um baralho novo para cada página).
   function pedidoPara(app, url, ajustes) {
     if (app === 'acervo') return { caminho: '/api/referencias', corpo: { url } }
+    // A Trilha divide o vídeo e já sugere as trilhas sozinha (T46 de lá).
+    if (app === 'trilha') return { caminho: '/api/entrada', corpo: { url, automatico: true } }
     if (app === 'biblioteca') return { caminho: '/api/books' } // o corpo é o próprio PDF, num formulário (servico.js)
     const baralho = ajustes.baralho === 'novo' ? '' : ajustes.baralho || ''
     return { caminho: '/api/links', corpo: { url, baralho_id: baralho, tipo: ajustes.tipo || 'basico' } }
@@ -114,6 +121,14 @@
     if (app === 'acervo') {
       if (status === 201) return { estado: 'enviado', mensagem: 'Na fila do Acervo', abrir: `${base}/#/referencia/${dados.id}` }
       if (status === 409 && dados?.id) return { estado: 'repetido', mensagem: 'Já está no Acervo', abrir: `${base}/#/referencia/${dados.id}` }
+    } else if (app === 'trilha') {
+      // A Entrada responde 202 com a lista de fontes; o vídeo que já estava volta como está.
+      const f = Array.isArray(dados) ? dados[0] : null
+      if (status === 202 && f) {
+        const abrir = `${base}/#/entrada/${f.id}`
+        if (f.estado !== 'na_fila') return { estado: 'repetido', mensagem: 'Já está na Entrada da Trilha', abrir }
+        return { estado: 'enviado', mensagem: 'Na Entrada: a IA divide e sugere as trilhas', abrir }
+      }
     } else if (app === 'biblioteca') {
       if (status === 201) return { estado: 'enviado', mensagem: 'Na Biblioteca', abrir: `${base}/#/livro/${encodeURIComponent(dados.id)}` }
       if (status === 409) return { estado: 'repetido', mensagem: 'Já está na Biblioteca', abrir: '' }

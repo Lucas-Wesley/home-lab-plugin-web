@@ -1,7 +1,7 @@
 # Homelab no Chrome
 
 Extensão do Chrome (Manifest V3) do **ecossistema de apps pessoais do Lucas**: um botão discreto
-nas páginas que manda o link ao app certo (vídeo do YouTube → Acervo, página com frases de exemplo → Flashcards);
+nas páginas que manda o link ao app certo (vídeo do YouTube → Trilha, E13; página com frases de exemplo → Flashcards);
 pelo popup e pelo botão direito, qualquer página ou link vai ao Acervo ou ao Flashcards (E10), e um PDF vai à
 Biblioteca (E12). É um
 **cliente** dos apps, sem banco nem servidor próprio.
@@ -10,7 +10,7 @@ Biblioteca (E12). É um
 
 ## Contexto do ecossistema
 Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley/hub-home-lab-web`
-(pasta `docs/`). A extensão usa as APIs que os apps já têm (`POST /api/referencias` do Acervo,
+(pasta `docs/`). A extensão usa as APIs que os apps já têm (`POST /api/entrada` da Trilha, `POST /api/referencias` do Acervo,
 `POST /api/links` e `GET /api/baralhos` do Flashcards, `POST /api/books` da Biblioteca): mudar uma delas é mudar
 os dois lados.
 

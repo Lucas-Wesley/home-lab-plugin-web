@@ -91,6 +91,9 @@ chrome.runtime.onInstalled.addListener(() => {
     for (const app of ['acervo', 'flashcards']) {
       chrome.contextMenus.create({ id: app, title: APPS[app].acao, contexts: ['link', 'page'], documentUrlPatterns: ['https://*/*', 'http://*/*'] })
     }
+    // A Trilha só no vídeo do YouTube aberto ou num link para um (E13).
+    chrome.contextMenus.create({ id: 'trilha', title: APPS.trilha.acao, contexts: ['page'], documentUrlPatterns: ['https://*.youtube.com/*'] })
+    chrome.contextMenus.create({ id: 'trilha-link', title: APPS.trilha.acao, contexts: ['link'], targetUrlPatterns: ['https://*.youtube.com/*'] })
     // A Biblioteca só no PDF aberto ou num link para PDF (E12).
     chrome.contextMenus.create({ id: 'biblioteca-pagina', title: APPS.biblioteca.acao, contexts: ['page'], documentUrlPatterns: ['https://*/*.pdf*', 'http://*/*.pdf*'] })
     chrome.contextMenus.create({ id: 'biblioteca-link', title: APPS.biblioteca.acao, contexts: ['link'], targetUrlPatterns: ['https://*/*.pdf*', 'http://*/*.pdf*'] })
@@ -119,9 +122,11 @@ chrome.contextMenus.onClicked.addListener(async (info, aba) => {
     return
   }
   const link = info.linkUrl || info.pageUrl
-  const acao = acoesDaPagina(link).find((a) => a.app === info.menuItemId)
+  const app = info.menuItemId === 'trilha-link' ? 'trilha' : info.menuItemId
+  const acao = acoesDaPagina(link).find((a) => a.app === app)
   if (!acao) {
-    const mensagem = info.menuItemId === 'flashcards' ? 'Vídeo do YouTube vai só ao Acervo.' : 'Este link não vai a nenhum app.'
+    const mensagem =
+      app === 'flashcards' ? 'Vídeo do YouTube vai à Trilha ou ao Acervo.' : app === 'trilha' ? 'Só vídeo do YouTube vai à Trilha.' : 'Este link não vai a nenhum app.'
     sinalizar({ estado: 'erro', mensagem })
     return
   }
