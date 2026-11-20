@@ -149,6 +149,8 @@ const comando = (aba, sessao, metodo, params = {}) => chrome.debugger.sendComman
 async function ligarSessao(aba, sessao) {
   // Buffers maiores para o texto dos manifestos ainda estar lá quando o pedido termina.
   await comando(aba, sessao, 'Network.enable', { maxTotalBufferSize: 100e6, maxResourceBufferSize: 10e6 }).catch(() => {})
+  // Sem cache: o manifesto e a chave do vídeo passam pela rede de novo, onde a coleta vê.
+  await comando(aba, sessao, 'Network.setCacheDisabled', { cacheDisabled: true }).catch(() => {})
   await comando(aba, sessao, 'Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }).catch(() => {})
 }
 
@@ -164,6 +166,9 @@ async function comecarColeta(aba, { curso, pagina, titulo }) {
   }
   await comando(aba, null, 'Page.enable').catch(() => {})
   await ligarSessao(aba, null)
+  // A página recarrega já com a coleta ligada: o player pede tudo desde o começo (manifesto, chave).
+  // Sem isso, um vídeo que já tocava só mostra os pedaços (as primeiras coletas, 20/11).
+  await comando(aba, null, 'Page.reload', { ignoreCache: true }).catch(() => {})
   return estadoDaColeta(aba)
 }
 

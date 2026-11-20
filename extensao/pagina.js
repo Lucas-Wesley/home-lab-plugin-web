@@ -133,7 +133,7 @@
     const caixa = host.shadowRoot.querySelector('.caixa')
     try {
       if (caixa.dataset.estado !== 'coletando') {
-        mostrar('enviando', 'Ligando a coleta…')
+        mostrar('enviando', 'Ligando a coleta e recarregando…')
         const e = await chrome.runtime.sendMessage({ tipo: 'coletaComecar', curso: destino.curso, pagina: location.href, titulo: document.title })
         if (e?.erro) return mostrar('erro', e.erro)
         mostrarColeta(e)

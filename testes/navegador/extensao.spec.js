@@ -198,8 +198,9 @@ test('na aula de um curso, o botão coleta o tráfego do player e salva o relat�
   await page.goto('https://app.branas.io/users/u/products/p/contents/c')
   await expect(botao(page)).toHaveAttribute('aria-label', 'Analisar vídeo')
 
-  await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toContainText('Coletando')
+  // Ligar a coleta recarrega a página (sem cache); depois do recarregar, o botão continua coletando.
+  await Promise.all([page.waitForEvent('load'), botao(page).click()])
+  await expect(page.locator('homelab-envio .texto')).toContainText('Coletando', { timeout: 5000 })
   // O player (iframe de outro site) pede o manifesto e um pedaço, como ao dar play.
   await page.frameLocator('#player').locator('video').waitFor({ state: 'attached' })
   await page.frames().find((f) => f.url().includes('player.exemplo.com')).evaluate(() => window.tocar())
@@ -217,4 +218,5 @@ test('na aula de um curso, o botão coleta o tráfego do player e salva o relat�
   expect(manifesto.corpo).toContain('#EXT-X-KEY:METHOD=AES-128')
   expect(manifesto.cabecalhosPedido.Authorization).toBe('[omitido]')
   expect(relatorio.videos.length).toBe(1)
+  expect(relatorio.pedidos.some((p) => p.recurso === 'Document' && p.url.startsWith('https://app.branas.io/'))).toBe(true)
 })

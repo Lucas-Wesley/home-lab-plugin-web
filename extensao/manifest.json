@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos, analisa como o vídeo chega: pelo popup, pelo botão direito ou pelo botão discreto na página.",
   "icons": { "16": "icones/16.png", "32": "icones/32.png", "48": "icones/48.png", "128": "icones/128.png" },
   "action": { "default_title": "Homelab", "default_popup": "popup.html", "default_icon": { "16": "icones/16.png", "32": "icones/32.png" } },
