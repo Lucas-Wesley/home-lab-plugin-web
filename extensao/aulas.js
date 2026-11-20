@@ -63,6 +63,42 @@
   // Cabeçalho de seção da barra lateral: "Aula 6 (02/03/2026 às 19:00)", "Módulo 2 - …".
   const PARECE_MODULO = /^(aula|m[óo]dulo|semana|cap[ií]tulo|se[cç][ãa]o|parte|unidade|module|week|lesson|extra)\b/i
 
+  // Textos curtos da barra lateral que não são nome de aula: progresso, duração, estado, navegação.
+  const NAO_E_AULA = /^(\d{1,3}\s*%.*|\d+\s*(h|min|s)\b.*|\d+\s*\/\s*\d+|assistida.*|em progresso.*|conclu[ií]d[oa]|anterior|pr[óo]ximo|voltar|recolher|aula atual|report do m[óo]dulo)$/i
+
+  // "0% concluído": o nome do curso fica logo antes (Branas.io).
+  const PROGRESSO = /^\d{1,3}\s*%\s*conclu/i
+
+  const caixaAlta = (t) => t === t.toUpperCase() && t !== t.toLowerCase()
+
+  // escolherTitulo: dos textos visíveis da página ({ texto, fonte, ativo }), o nome da aula. Os
+  // dois sites o mostram duas vezes (no alto da aula e marcado na lista do módulo): vale o texto
+  // que se repete ou o item marcado como atual; letra maior desempata. Sem nenhum, ''.
+  function escolherTitulo(textos) {
+    const grupos = new Map()
+    for (const { texto, fonte = 0, ativo = false } of textos || []) {
+      const t = String(texto || '').replace(/\s+/g, ' ').trim()
+      if (t.length < 4 || t.length > 150 || GENERICOS.test(t) || NAO_E_AULA.test(t) || !/\p{L}{3}/u.test(t)) continue
+      const k = t.toLowerCase()
+      const g = grupos.get(k) || { texto: t, vezes: 0, ativo: false, fonte: 0 }
+      if (caixaAlta(g.texto) && !caixaAlta(t)) g.texto = t
+      g.vezes++
+      g.ativo ||= ativo
+      g.fonte = Math.max(g.fonte, fonte)
+      grupos.set(k, g)
+    }
+    let melhor = null
+    let nota = 0
+    for (const g of grupos.values()) {
+      if (g.vezes < 2 && !g.ativo) continue
+      // Cabeçalho de módulo aberto ("Aula 6 (…)") pode vir marcado como ativo, e rótulos de uma palavra
+      // (as abas "Vídeo", "Conteúdo") podem se repetir: os dois contam menos.
+      const n = (g.vezes >= 2 ? 10 : 0) + (g.ativo ? 8 : 0) + Math.min(g.fonte, 40) / 4 - (PARECE_MODULO.test(g.texto) ? 6 : 0) - (/\s/.test(g.texto) ? 0 : 10)
+      if (n > nota) [melhor, nota] = [g.texto, n]
+    }
+    return melhor || ''
+  }
+
   // tamanho do arquivo para o popup: "1,2 GB", "340 MB".
   function tamanhoLegivel(bytes) {
     if (!bytes || bytes < 0) return ''
@@ -78,5 +114,5 @@
     return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`
   }
 
-  globalThis.Aulas = { PLAYERS, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
+  globalThis.Aulas = { NAO_E_AULA, PROGRESSO, escolherTitulo, PLAYERS, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
 })()

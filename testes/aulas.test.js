@@ -37,3 +37,16 @@ test('tamanho e duração para o popup', () => {
   assert.equal(A.duracaoLegivel(7254), '2 h 01 min')
   assert.equal(A.duracaoLegivel(1214), '20 min')
 })
+
+test('o nome da aula é o texto repetido ou marcado como atual (E15)', () => {
+  const t = (texto, fonte = 14, ativo = false) => ({ texto, fonte, ativo })
+  // Branas.io: no alto (letra grande) e marcado na lista; o módulo aberto também vem "ativo".
+  assert.equal(A.escolherTitulo([t('0% CONCLUÍDO'), t('Aula 6 (02/03/2026 às 19:00)', 14, true), t('Assistir aula completa'), t('Arquitetura de Microservices', 14, true), t('Arquitetura de Microservices', 26)]), 'Arquitetura de Microservices')
+  // LINUXtips: no título do painel e na lista, sem marca de ativo; o título do texto em caixa alta não se repete.
+  assert.equal(A.escolherTitulo([t('Protocolos de Rede: IP, IPV4 e IPV6'), t('8 min'), t('8 min'), t('Protocolos de Rede: IP, IPV4 e IPV6', 15), t('PROTOCOLO IP, IPV4 E IPV6', 18)]), 'Protocolos de Rede: IP, IPV4 e IPV6')
+  // Uma aula cujo nome começa com "Aula" ainda vale.
+  assert.equal(A.escolherTitulo([t('Aula de teste'), t('Aula de teste', 24)]), 'Aula de teste')
+  assert.equal(A.escolherTitulo([t('Só uma vez', 30)]), '')
+  assert.equal(A.escolherTitulo([t('Vídeo', 14, true), t('Vídeo'), t('Protocolos de Rede: DNS'), t('Protocolos de Rede: DNS')]), 'Protocolos de Rede: DNS')
+  assert.ok(A.PROGRESSO.test('0% CONCLUÍDO'))
+})

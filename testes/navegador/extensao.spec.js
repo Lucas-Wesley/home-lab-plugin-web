@@ -240,7 +240,9 @@ test('na aula de um curso, o popup lê o nome da aula e do módulo e manda baixa
   expect(estimar.corpo.manifesto).toBe('https://player-vz-teste.tv.pandavideo.com.br/v/1/playlist.m3u8?token=abc')
   expect(estimar.corpo.referer).toBe('https://player-vz-teste.tv.pandavideo.com.br/')
 
-  // Sem nome de curso, não manda; com ele, manda e lembra o nome para as próximas aulas.
+  // O curso vem da página; sem nome, não manda; o nome corrigido fica lembrado para as próximas aulas.
+  await expect(popup.locator('#aula-curso')).toHaveValue('Clean Code e Clean Architecture - Gravação da Turma 24')
+  await popup.locator('#aula-curso').fill('')
   await popup.getByRole('button', { name: 'Baixar esta aula' }).click()
   await expect(popup.locator('#aula-info')).toHaveText('Escreva o nome do curso e o da aula.')
   await popup.locator('#aula-curso').fill('Clean Code e Arquitetura')
@@ -260,6 +262,18 @@ test('na aula de um curso, o popup lê o nome da aula e do módulo e manda baixa
   await popup.reload()
   await expect(popup.locator('#aula-curso')).toHaveValue('Clean Code e Arquitetura')
   await expect(popup.locator('#historico li').first()).toContainText('Arquitetura de Microservices')
+})
+
+test('na sala da LINUXtips, o popup lê o curso, o módulo e a aula (E15)', async ({ page, context, extensao }) => {
+  await page.goto('https://mesa.linuxtips.io/treinamentos/system-design-turma4/9a4a64b6')
+  await expect(botao(page)).toBeVisible()
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#aula-plataforma')).toHaveText('LINUXtips')
+  await expect(popup.locator('#aula-titulo')).toHaveValue('Protocolos de Rede: IP, IPV4 e IPV6')
+  await expect(popup.locator('#aula-modulo')).toHaveValue('MODULO 1 - FUNDAMENTOS E PROTOCOLOS DE REDE')
+  await expect(popup.locator('#aula-curso')).toHaveValue('System Design Turma4')
 })
 
 test('na aula sem play, o popup pede para dar play (E15)', async ({ page, context, extensao }) => {

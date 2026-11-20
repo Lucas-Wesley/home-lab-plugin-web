@@ -116,9 +116,29 @@ export const test = base.extend({
       return route.fulfill({ contentType: 'application/pdf', body: PDF })
     })
     // A aula de um curso (E14): a página carrega o player num iframe de outro site, que pede um HLS com AES-128.
-    await context.route('https://app.branas.io/**', (route) =>
-      route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><head><title>Arquitetura de Microservices</title></head><body><aside><div><p>Aula 2 (19/01/2026 às 19:00)</p><ul><li>Arquitetura Hexagonal</li></ul></div><div><p>Aula 6 (02/03/2026 às 19:00)</p><ul><li>Assistir aula completa</li><li><span>Arquitetura de Microservices</span></li></ul></div></aside><main><h1>Arquitetura de Microservices</h1><iframe id="player" src="https://player-vz-teste.tv.pandavideo.com.br/embed/1"></iframe></main></body></html>' }),
-    )
+    // Como a página de verdade (print de 20/11): aba "branas.io", sem <h1>, o curso acima do "0% CONCLUÍDO",
+    // os módulos em sanfona e a aula no alto e marcada na lista.
+    const BRANAS = `<!doctype html><html><head><title>branas.io</title></head><body>
+      <aside><a href="#">‹ Voltar</a><div><div style="font-size:18px;font-weight:700">Clean Code e Clean Architecture - Gravação da Turma 24</div><div>0% CONCLUÍDO</div></div>
+        <div><button><span>Aula 2 (19/01/2026 às 19:00)</span><svg width="10" height="10"></svg></button></div>
+        <div><button><span>Aula 6 (02/03/2026 às 19:00)</span><svg width="10" height="10"></svg></button>
+          <div><div class="item"><i></i>Assistir aula completa</div><div class="item item--active"><i></i>Arquitetura de Microservices</div><div class="item"><i></i>Event-Driven Architecture</div></div></div></aside>
+      <main><div style="font-size:26px;font-weight:700">Arquitetura de Microservices</div><div>← ANTERIOR</div><div>PRÓXIMO →</div><div>○ CONCLUÍDO</div>
+        <iframe id="player" src="https://player-vz-teste.tv.pandavideo.com.br/embed/1"></iframe></main></body></html>`
+    await context.route('https://app.branas.io/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: BRANAS }))
+    // A sala da LINUXtips (print de 20/11): aba "Sala de Aula | LINUXtips", a aula no título do painel do vídeo e
+    // destacada na lista, o módulo com a duração e a contagem ao lado.
+    const LINUXTIPS = `<!doctype html><html><head><title>Sala de Aula | LINUXtips</title></head><body>
+      <nav><span>Vídeo</span><span>Conteúdo</span><span>Transcrição</span></nav>
+      <aside><div>SYSTEM DESIGN T4</div>
+        <div><div><span>MODULO 0 - COMECE POR AQUI &amp; AULAS AO VIVO ANTERIORES</span><span>28 MIN</span><span>1/1</span></div></div>
+        <div><div><span>MODULO 1 - FUNDAMENTOS E PROTOCOLOS DE REDE</span><span>1H 13MIN</span><span>1/10</span></div><div>Report do módulo</div>
+          <ul><li><p>Protocolos de Rede: Introdução a Protocolos</p><p>Assistida · 5 min</p></li>
+            <li><p>Protocolos de Rede: IP, IPV4 e IPV6</p><p>8 min</p></li>
+            <li><p>Protocolos de Rede: Protocolo TCP e UDP</p><p>7 min</p></li></ul></div></aside>
+      <section><header><span>Protocolos de Rede: IP, IPV4 e IPV6</span></header><div style="height:200px">vídeo</div>
+        <header><span>Conteúdo da Aula</span></header><h3>PROTOCOLO IP, IPV4 E IPV6</h3><p>O Protocolo de Internet (IP) opera na camada de rede.</p></section></body></html>`
+    await context.route('https://mesa.linuxtips.io/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: LINUXTIPS }))
     await context.route('https://player-vz-teste.tv.pandavideo.com.br/**', (route) => {
       const u = new URL(route.request().url())
       if (u.pathname === '/embed/1')

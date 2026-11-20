@@ -100,7 +100,7 @@ async function mostrarAula() {
   $('aula').hidden = false
   $('aula-plataforma').textContent = aula.nomePlataforma
   const { cursos = {} } = await chrome.storage.local.get('cursos')
-  if (!$('aula-curso').value) $('aula-curso').value = cursos[aula.chaveCurso] || aula.cursoPadrao || ''
+  if (!$('aula-curso').value) $('aula-curso').value = cursos[aula.chaveCurso] || aula.curso || aula.cursoPadrao || ''
   if (!$('aula-modulo').value) $('aula-modulo').value = aula.modulo || ''
   if (!$('aula-titulo').value) $('aula-titulo').value = aula.titulo || ''
 

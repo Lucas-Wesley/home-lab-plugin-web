@@ -239,40 +239,97 @@
     if (novo.app === 'coleta') chrome.runtime.sendMessage({ tipo: 'coletaEstado' }).then(mostrarColeta).catch(() => {})
   }
 
-  // A aula aberta num dos cursos (E15): o nome dela, o do módulo (o cabeçalho da seção da barra
-  // lateral onde ela está) e o endereço. Os sites não têm marcação comum: o título é o primeiro
-  // <h1>/<h2> visível que não seja o nome do site; o módulo, o texto curto logo antes do grupo
-  // onde o título da aula se repete. O popup deixa corrigir os dois.
-  const { GENERICOS, PARECE_MODULO, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
+  // A aula aberta num dos cursos (E15): o nome do curso, o do módulo e o da aula, lidos da página
+  // para o Lucas não digitar. Os sites não têm marcação comum, então vale o que se vê:
+  // - aula: o texto que aparece duas vezes (no alto da aula e marcado na lista do módulo) ou o item
+  //   marcado como atual (escolherTitulo, em aulas.js); sem isso, o primeiro <h1>/<h2>;
+  // - módulo: o cabeçalho de seção logo antes do grupo onde a aula está na lista;
+  // - curso: o texto logo antes do "0% concluído" (Branas.io); na LINUXtips, o nome do treinamento
+  //   na URL. O nome que o Lucas escrever para o curso fica lembrado. O popup deixa corrigir tudo.
+  const { GENERICOS, PARECE_MODULO, PROGRESSO, NAO_E_AULA, escolherTitulo, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
   const textoDe = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim()
+  // Só o texto do próprio elemento, sem o dos filhos ("MODULO 1 - …" sem o "1h 13min 1/10" ao lado).
+  const textoProprio = (el) =>
+    [...(el?.childNodes || [])]
+      .filter((n) => n.nodeType === Node.TEXT_NODE)
+      .map((n) => n.textContent)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim()
   const visivel = (el) => {
     const r = el.getBoundingClientRect()
     return r.width > 0 && r.height > 0
   }
+  const ATIVO = /(^|[\s_-])(active|current|selected|atual|ativa|ativo)($|[\s_-])/i
+  function marcadoComoAtual(el) {
+    for (let a = el, n = 0; a && a !== document.body && n < 5; a = a.parentElement, n++) {
+      const corrente = a.getAttribute('aria-current')
+      if ((corrente && corrente !== 'false') || a.getAttribute('aria-selected') === 'true' || a.dataset?.state === 'active' || a.dataset?.active === 'true') return true
+      if (typeof a.className === 'string' && ATIVO.test(a.className)) return true
+    }
+    return false
+  }
 
-  function tituloDaAula() {
+  // Os elementos com texto próprio visíveis (o que se lê na tela), com o texto inteiro deles.
+  function textosVisiveis() {
+    const lista = []
+    for (const el of document.body.querySelectorAll('*')) {
+      if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|svg)$/i.test(el.tagName) || !textoProprio(el)) continue
+      const texto = textoDe(el)
+      if (texto.length > 150 || !visivel(el)) continue
+      lista.push({ el, texto })
+    }
+    return lista
+  }
+
+  function tituloDaAula(textos) {
+    const escolhido = escolherTitulo(textos.map(({ el, texto }) => ({ texto, fonte: parseFloat(getComputedStyle(el).fontSize) || 0, ativo: marcadoComoAtual(el) })))
+    if (escolhido) return escolhido
     for (const sel of ['main h1', 'h1', 'main h2', 'h2']) {
       for (const el of document.querySelectorAll(sel)) {
         const t = textoDe(el)
-        if (visivel(el) && t.length > 2 && t.length < 200 && !GENERICOS.test(t)) return { texto: t, el }
+        if (visivel(el) && t.length > 2 && t.length < 200 && !GENERICOS.test(t)) return t
       }
     }
-    return { texto: tituloLimpo(document.title), el: null }
+    return tituloLimpo(document.title)
   }
 
-  function moduloDaAula(titulo, cabecalho) {
+  // O texto de módulo dentro de um cabeçalho: o próprio, ou o do filho que parece módulo.
+  function moduloEm(el) {
+    const t = textoDe(el)
+    if (t.length < 120 && PARECE_MODULO.test(t) && !/\d\s*\/\s*\d+$/.test(t)) return t
+    for (const filho of el.querySelectorAll('*')) {
+      const p = textoProprio(filho)
+      if (p && PARECE_MODULO.test(p)) return textoDe(filho)
+    }
+    return ''
+  }
+
+  function moduloDaAula(titulo, textos) {
     if (!titulo) return ''
-    // O item da barra lateral com o mesmo texto da aula (não o próprio título da página).
-    const itens = [...document.querySelectorAll('a, li, button, span, p, div')].filter(
-      (el) => el !== cabecalho && !el.contains(cabecalho) && textoDe(el) === titulo && !el.querySelector('a, li, button'),
-    )
-    for (const item of itens) {
-      let atual = item
+    const alvo = titulo.toLowerCase()
+    // As vezes em que o nome da aula aparece; o cabeçalho do módulo fica antes do grupo de uma delas.
+    for (const { el, texto } of textos) {
+      if (texto.toLowerCase() !== alvo) continue
+      let atual = el
       for (let nivel = 0; atual && nivel < 8; nivel++, atual = atual.parentElement) {
         for (let irmao = atual.previousElementSibling, n = 0; irmao && n < 3; irmao = irmao.previousElementSibling, n++) {
-          const t = textoDe(irmao)
-          if (t && t.length < 120 && t !== titulo && PARECE_MODULO.test(t)) return t
+          const t = moduloEm(irmao)
+          if (t && t.toLowerCase() !== alvo) return t
         }
+      }
+    }
+    return ''
+  }
+
+  // O nome do curso: o texto logo antes do "0% concluído" (ou do bloco que o contém).
+  function cursoDaAula(textos) {
+    const progresso = textos.find(({ texto }) => PROGRESSO.test(texto))
+    if (!progresso) return ''
+    for (let atual = progresso.el, nivel = 0; atual && nivel < 4; nivel++, atual = atual.parentElement) {
+      for (let irmao = atual.previousElementSibling; irmao; irmao = irmao.previousElementSibling) {
+        const t = textoDe(irmao)
+        if (t.length > 3 && t.length < 150 && !GENERICOS.test(t) && !NAO_E_AULA.test(t) && !/^[<‹«]/.test(t)) return t
       }
     }
     return ''
@@ -281,12 +338,14 @@
   function aulaDaPagina() {
     const curso = cursoDaPagina(location.href)
     if (!curso) return null
-    const { texto, el } = tituloDaAula()
+    const textos = textosVisiveis()
+    const titulo = tituloDaAula(textos)
     return {
       plataforma: curso.curso,
       nomePlataforma: curso.nome,
-      titulo: texto,
-      modulo: moduloDaAula(texto, el),
+      titulo,
+      modulo: moduloDaAula(titulo, textos),
+      curso: cursoDaAula(textos),
       pagina: location.href,
       chaveCurso: chaveDoCurso(location.href),
       cursoPadrao: cursoPadrao(location.href),
