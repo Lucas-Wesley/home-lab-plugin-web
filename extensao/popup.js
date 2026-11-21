@@ -115,6 +115,10 @@ async function mostrarAula() {
   if (!$('aula-curso').value) $('aula-curso').value = cursos[aula.chaveCurso] || aula.curso || aula.cursoPadrao || ''
   if (!$('aula-modulo').value) $('aula-modulo').value = aula.modulo || ''
   if (!$('aula-titulo').value) $('aula-titulo').value = aula.titulo || ''
+  if (!mostrarAula.loteAberto) {
+    mostrarAula.loteAberto = true
+    mostrarLote(aba, aula)
+  }
 
   const info = $('aula-info')
   info.classList.remove('erro')
@@ -170,6 +174,62 @@ async function mostrarAula() {
     }
     if (res.estado === 'erro') $('aula-baixar').disabled = false
   }
+}
+
+// E19: o curso inteiro. Antes de começar, o popup diz quantas aulas e seções achou na lista (para o
+// Lucas conferir); durante, mostra o progresso, que o serviço guarda em chrome.storage.local.
+let listaDoCurso = []
+function desenharLote(lote) {
+  const info = $('lote-info')
+  const lista = $('lote-problemas')
+  lista.replaceChildren()
+  for (const id of ['lote-baixar', 'lote-parar', 'lote-continuar', 'lote-esquecer']) $(id).hidden = true
+  if (!lote) {
+    if (listaDoCurso.length < 2) {
+      $('lote').hidden = true
+      return
+    }
+    $('lote').hidden = false
+    const secoes = new Set(listaDoCurso.map((a) => a.modulo)).size
+    info.textContent = `Achei ${listaDoCurso.length} aulas em ${secoes} seções, de "${listaDoCurso[0].titulo}" a "${listaDoCurso.at(-1).titulo}". Esta aba vai passar por cada uma (uns 15 s por aula): deixe-a aberta e à vista.`
+    $('lote-baixar').hidden = false
+    return
+  }
+  $('lote').hidden = false
+  const conta = (e) => lote.aulas.filter((a) => a.estado === e).length
+  const feitas = lote.aulas.filter((a) => a.estado).length
+  const partes = [`${feitas} de ${lote.aulas.length}`, `${conta('enviada')} na Trilha`]
+  if (conta('sem_video')) partes.push(`${conta('sem_video')} sem vídeo`)
+  if (conta('erro')) partes.push(`${conta('erro')} com erro`)
+  info.textContent = partes.join(' · ') + (lote.rodando ? (lote.atual ? ` · agora: ${lote.atual}` : '') : lote.aviso ? ` · ${lote.aviso}` : feitas === lote.aulas.length ? ' · terminou' : ' · parado')
+  for (const a of lote.aulas.filter((a) => a.estado === 'erro' || a.estado === 'sem_video')) {
+    const li = document.createElement('li')
+    li.textContent = `${a.titulo}: ${a.mensagem}`
+    lista.append(li)
+  }
+  $('lote-parar').hidden = !lote.rodando
+  $('lote-continuar').hidden = lote.rodando || lote.aulas.every((a) => a.estado === 'enviada')
+  $('lote-esquecer').hidden = lote.rodando
+}
+
+async function mostrarLote(aba, aula) {
+  listaDoCurso = (await chrome.tabs.sendMessage(aba, { tipo: 'aulasDaLista' }).catch(() => null)) || []
+  const { lote } = await chrome.storage.local.get('lote')
+  desenharLote(lote)
+  chrome.storage.onChanged.addListener((mudou, area) => {
+    if (area === 'local' && 'lote' in mudou) desenharLote(mudou.lote.newValue)
+  })
+  $('lote-baixar').onclick = () => {
+    const curso = $('aula-curso').value.trim()
+    if (!curso) {
+      $('lote-info').textContent = 'Escreva o nome do curso acima.'
+      return
+    }
+    chrome.runtime.sendMessage({ tipo: 'iniciarLote', aba, curso, plataforma: aula.plataforma, aulas: listaDoCurso })
+  }
+  $('lote-parar').onclick = () => chrome.runtime.sendMessage({ tipo: 'pararLote' })
+  $('lote-continuar').onclick = () => chrome.runtime.sendMessage({ tipo: 'continuarLote', aba })
+  $('lote-esquecer').onclick = () => chrome.runtime.sendMessage({ tipo: 'esquecerLote' })
 }
 
 async function iniciar() {

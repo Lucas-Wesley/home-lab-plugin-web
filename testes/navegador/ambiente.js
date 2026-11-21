@@ -154,14 +154,15 @@ export const test = base.extend({
       <header><button>☰</button><span>[Curso] Fundamentos do Desenvolvimento de Software Enterprise</span><button>Concluir aula</button></header>
       <aside><div><button>←</button><div>6 de 69 concluídos</div><div>8%</div></div>
         <div class="secao"><div class="cab"><div>Construindo o primeiro MVP de streaming</div><div>3 aulas</div></div>
-          <div class="itens"><a class="item"><span>Setup e upload de video</span><span>Aula</span></a>
-            <a class="item item-ativo" aria-current="page"><span>Banco de dados</span><span>Aula</span></a>
-            <a class="item"><span>Fundamentos do streaming de conteúdo escalável</span><span>Aula</span></a></div></div>
+          <div class="itens"><a class="item" href="/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227710/lessons/840643"><span>Setup e upload de video</span><span>Aula</span></a>
+            <a class="item item-ativo" aria-current="page" href="/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227710/lessons/840644"><span>Banco de dados</span><span>Aula</span></a>
+            <a class="item" href="/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227710/lessons/840645"><span>Fundamentos do streaming de conteúdo escalável</span><span>Aula</span></a></div></div>
         <div class="secao"><div class="cab"><div>Patterns de Desenvolvimento Enterprise</div><div>3 aulas</div></div>
-          <div class="itens"><a class="item"><span>Domain Driven Design - DDD</span><span>Aula</span></a></div></div></aside>
+          <div class="itens"><a class="item" href="/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227711/lessons/840650"><span>Domain Driven Design - DDD</span><span>Aula</span></a></div></div></aside>
       <main><video></video><div><span>00:00</span><span>Passo 2 da primeira parte agora a gente vai começar</span><button>Mostrar transcrição</button></div>
         <h1 style="font-size:32px">Banco de dados</h1><p>Neste vídeo vamos fazer o setup do banco de dados utilizando Prisma.</p></main>
-      <script>window.tocar = () => fetch("https://stream.video-teste.com/abc.m3u8?token=t1").then((r) => r.text())</script></body></html>`
+      <script>window.tocar = () => fetch("https://stream.video-teste.com/abc.m3u8?token=t1").then((r) => r.text())
+        document.querySelector('video').addEventListener('play', () => window.tocar())</script></body></html>`
     await context.route('https://techleads.club/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: TECHLEADS }))
     await context.route('https://stream.video-teste.com/**', (route) =>
       route.fulfill({ contentType: 'application/vnd.apple.mpegurl', headers: { 'Access-Control-Allow-Origin': '*' }, body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' }),

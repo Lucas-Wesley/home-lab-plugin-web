@@ -3,7 +3,7 @@
 Extensão do Chrome (Manifest V3) do **ecossistema de apps pessoais do Lucas**: um botão discreto
 nas páginas que manda o link ao app certo (vídeo do YouTube → Trilha, E13; página com frases de exemplo → Flashcards);
 pelo popup e pelo botão direito, qualquer página ou link vai ao Acervo ou ao Flashcards (E10), e um PDF vai à
-Biblioteca (E12); nas aulas da Branas.io, LINUXtips, Full Cycle e Tech Leads Club, coleta como o vídeo chega (E14) e, pelo popup, manda baixar a aula na Trilha (E15). É um
+Biblioteca (E12); nas aulas da Branas.io, LINUXtips, Full Cycle e Tech Leads Club, coleta como o vídeo chega (E14) e, pelo popup, manda baixar a aula na Trilha (E15) ou, na Tech Leads Club, o curso inteiro (E19). É um
 **cliente** dos apps, sem banco nem servidor próprio.
 
 **Comece lendo:** [`docs/DECISOES.md`](docs/DECISOES.md).

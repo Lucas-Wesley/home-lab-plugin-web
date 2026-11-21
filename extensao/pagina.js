@@ -399,6 +399,47 @@
     }
   }
 
+  // E19: a lista de aulas da barra lateral (Tech Leads Club, uma comunidade Circle): o link de cada
+  // aula do curso (/c/<curso>/…/lessons/<n>), o nome dela e a seção. O texto do link é o nome inteiro,
+  // mesmo quando a tela o corta com "…".
+  const LINK_DE_AULA = /\/lessons\/\d+\/?$/
+  function secaoDaAula(link) {
+    for (let atual = link.parentElement, n = 0; atual && atual !== document.body && n < 10; atual = atual.parentElement, n++) {
+      const contagem = [...atual.querySelectorAll('*')].find((el) => CONTAGEM.test(textoProprio(el)) && !el.closest('a[href]'))
+      if (!contagem) continue
+      // O nome da seção vem antes do "N aulas" ("Patterns de Desenvolvimento Enterprise" · "3 aulas").
+      for (let el = contagem, k = 0; el && el !== atual && k < 4; el = el.parentElement, k++) {
+        for (let irmao = el.previousElementSibling; irmao; irmao = irmao.previousElementSibling) {
+          const t = textoDe(irmao)
+          if (t && t.length < 150 && !CONTAGEM.test(t) && !NAO_E_AULA.test(t)) return t
+        }
+      }
+      return nomeEm(atual)
+    }
+    return ''
+  }
+  function aulasDaLista() {
+    const base = location.pathname.match(/^\/c\/[^/]+\//)?.[0]
+    if (!base) return []
+    const vistas = new Set()
+    const lista = []
+    for (const a of document.querySelectorAll('a[href]')) {
+      let u
+      try {
+        u = new URL(a.href)
+      } catch {
+        continue
+      }
+      const url = u.origin + u.pathname
+      if (u.origin !== location.origin || !u.pathname.startsWith(base) || !LINK_DE_AULA.test(u.pathname) || vistas.has(url)) continue
+      const titulo = [a, ...a.querySelectorAll('*')].map(textoProprio).find((t) => t.length > 1 && !NAO_E_AULA.test(t) && !GENERICOS.test(t))
+      if (!titulo) continue
+      vistas.add(url)
+      lista.push({ url, titulo, modulo: secaoDaAula(a) })
+    }
+    return lista
+  }
+
   // O popup do ícone pergunta o que esta página pode fazer (E10: qualquer página vai ao Acervo ou
   // ao Flashcards) e pede para enviar a um dos apps; o resultado aparece no botão.
   chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
@@ -411,6 +452,24 @@
         responder({ titulo: tituloDaPagina(), acoes: acoes.map((a) => ({ app: a.app, acao: APPS[a.app].acao })) })
         destino = antes
       }
+      return false
+    }
+    if (mensagem?.tipo === 'aulasDaLista') {
+      responder(cursoDaPagina(location.href) ? aulasDaLista() : [])
+      return false
+    }
+    // E19: o download do curso inteiro dá play sem som (o player só pede o vídeo ao tocar) e pausa
+    // quando o vídeo já foi visto.
+    if (mensagem?.tipo === 'tocarMudo' || mensagem?.tipo === 'pausar') {
+      const videos = [...document.querySelectorAll('video')]
+      for (const v of videos) {
+        if (mensagem.tipo === 'pausar') v.pause()
+        else {
+          v.muted = true
+          v.play().catch(() => {})
+        }
+      }
+      responder(videos.length)
       return false
     }
     if (mensagem?.tipo === 'aulaDoCurso') {

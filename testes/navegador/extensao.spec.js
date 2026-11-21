@@ -293,6 +293,23 @@ test('na Tech Leads Club, o player da própria página conta e o popup lê o cur
   expect(estimar.corpo.referer).toBe('https://techleads.club/')
 })
 
+test('na Tech Leads Club, o popup acha as aulas da lista e baixa o curso inteiro, uma aula por vez (E19)', async ({ page, context, apps, extensao }) => {
+  test.setTimeout(90000)
+  await page.goto('https://techleads.club/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227710/lessons/840644')
+  await expect(botao(page)).toBeVisible()
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await expect(popup.locator('#lote-info')).toContainText('Achei 4 aulas em 2 seções')
+  await popup.getByRole('button', { name: 'Baixar o curso inteiro' }).click()
+  await expect(popup.locator('#lote-info')).toContainText('4 de 4 · 4 na Trilha', { timeout: 80000 })
+  const pedidos = apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas')
+  expect(pedidos.map((p) => p.corpo.titulo)).toEqual(['Setup e upload de video', 'Banco de dados', 'Fundamentos do streaming de conteúdo escalável', 'Domain Driven Design - DDD'])
+  expect(pedidos.map((p) => p.corpo.modulo)).toEqual(['Construindo o primeiro MVP de streaming', 'Construindo o primeiro MVP de streaming', 'Construindo o primeiro MVP de streaming', 'Patterns de Desenvolvimento Enterprise'])
+  expect(pedidos[3].corpo.pagina).toBe('https://techleads.club/c/fundamentos-do-desenvolvimento-de-software-enterprise/sections/227711/lessons/840650')
+  expect(pedidos[0].corpo.curso).toBe('Fundamentos do Desenvolvimento de Software Enterprise')
+})
+
 test('na Full Cycle, o player de outro site conta e o popup lê o curso, o módulo e a aula (E17)', async ({ page, context, apps, extensao }) => {
   await page.goto('https://plataforma.fullcycle.com.br/courses/3b8c4f2c/370/catalog/214/lessons/1')
   await expect(botao(page)).toBeVisible()

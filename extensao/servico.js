@@ -196,7 +196,112 @@ async function baixarAula(pedido) {
   return resultado
 }
 
+// E19: baixar o curso inteiro. A aba do curso passa por cada aula da lista (uma por vez, com uma
+// pausa entre elas), dá play sem som até o player pedir o vídeo, e a aula vai à fila da Trilha com a
+// seção da lista como módulo. O estado fica em chrome.storage.local: se o Chrome adormecer o serviço,
+// ele continua de onde parou quando acorda.
+const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms))
+const PAUSA_ENTRE_AULAS = 3000
+const ESPERA_DO_VIDEO = 20 // tentativas de 2 s
+
+function abrirNaAba(aba, url) {
+  return new Promise((ok) => {
+    const ouvir = (id, mudou) => {
+      if (id !== aba || mudou.status !== 'complete') return
+      clearTimeout(limite)
+      chrome.tabs.onUpdated.removeListener(ouvir)
+      ok()
+    }
+    const limite = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(ouvir)
+      ok()
+    }, 45000)
+    chrome.tabs.onUpdated.addListener(ouvir)
+    chrome.tabs.update(aba, { url }).catch(() => ok())
+  })
+}
+
+async function baixarDaLista(lote, aula) {
+  // Abrir a aula limpa os manifestos da anterior (o "loading" da aba, acima).
+  await abrirNaAba(lote.aba, aula.url)
+  let m = null
+  for (let t = 0; t < ESPERA_DO_VIDEO && !m; t++) {
+    await chrome.tabs.sendMessage(lote.aba, { tipo: 'tocarMudo' }).catch(() => 0)
+    await esperar(2000)
+    m = escolherManifesto(await manifestosDaAba(lote.aba))
+  }
+  await chrome.tabs.sendMessage(lote.aba, { tipo: 'pausar' }).catch(() => 0)
+  if (!m) return { estado: 'sem_video', mensagem: 'O vídeo não apareceu (aula sem vídeo?)' }
+  const lida = await chrome.tabs.sendMessage(lote.aba, { tipo: 'aulaDoCurso' }).catch(() => null)
+  const { enderecos } = await ajustes()
+  const pedido = { plataforma: lote.plataforma, curso: lote.curso, modulo: aula.modulo, titulo: aula.titulo || lida?.titulo || '', pagina: aula.url, manifesto: m.url, referer: m.referer }
+  try {
+    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
+    if (status === 202) return { estado: 'enviada', mensagem: 'Na fila da Trilha' }
+    if (status === 200 && dados?.repetida) return { estado: 'enviada', mensagem: dados.aula?.estado === 'pronta' ? 'Já baixada' : 'Já estava na fila' }
+    return { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}` }
+  } catch {
+    return { estado: 'erro', mensagem: 'Sem conexão com a Trilha' }
+  }
+}
+
+let loteRodando = false
+async function rodarLote() {
+  if (loteRodando) return
+  loteRodando = true
+  try {
+    for (;;) {
+      const { lote } = await chrome.storage.local.get('lote')
+      if (!lote?.rodando) break
+      const i = lote.aulas.findIndex((a) => !a.estado)
+      if (i < 0) {
+        await chrome.storage.local.set({ lote: { ...lote, rodando: false, atual: '', terminou: Date.now() } })
+        break
+      }
+      const aba = await chrome.tabs.get(lote.aba).catch(() => null)
+      if (!aba) {
+        await chrome.storage.local.set({ lote: { ...lote, rodando: false, atual: '', aviso: 'A aba do curso foi fechada: abra uma aula e continue.' } })
+        break
+      }
+      await chrome.storage.local.set({ lote: { ...lote, atual: lote.aulas[i].titulo } })
+      const r = await baixarDaLista(lote, lote.aulas[i])
+      // O Lucas pode ter parado ou recomeçado enquanto esta aula corria.
+      const { lote: agora } = await chrome.storage.local.get('lote')
+      if (!agora || agora.iniciado !== lote.iniciado) break
+      agora.aulas[i] = { ...agora.aulas[i], ...r }
+      await chrome.storage.local.set({ lote: agora })
+      await esperar(PAUSA_ENTRE_AULAS)
+    }
+  } finally {
+    loteRodando = false
+  }
+}
+// O serviço acordou (o Chrome o adormece): se havia um download do curso em andamento, continua.
+chrome.storage.local.get('lote').then(({ lote }) => lote?.rodando && rodarLote())
+
+async function comandoDoLote(mensagem) {
+  const { lote } = await chrome.storage.local.get('lote')
+  if (mensagem.tipo === 'iniciarLote') {
+    const { aba, curso, plataforma, aulas } = mensagem
+    await chrome.storage.local.set({ lote: { aba, curso, plataforma, aulas: aulas.map((a) => ({ url: a.url, titulo: a.titulo, modulo: a.modulo })), rodando: true, iniciado: Date.now(), atual: '' } })
+  } else if (lote && mensagem.tipo === 'pararLote') {
+    await chrome.storage.local.set({ lote: { ...lote, rodando: false, atual: '' } })
+  } else if (lote && mensagem.tipo === 'continuarLote') {
+    // Continuar refaz as que deram erro ou ficaram sem vídeo, na aba de onde o Lucas pediu.
+    const aulas = lote.aulas.map((a) => (a.estado === 'enviada' ? a : { url: a.url, titulo: a.titulo, modulo: a.modulo }))
+    await chrome.storage.local.set({ lote: { ...lote, aba: mensagem.aba || lote.aba, aulas, rodando: true, aviso: '' } })
+  } else if (mensagem.tipo === 'esquecerLote') {
+    await chrome.storage.local.remove('lote')
+  }
+  rodarLote()
+  return true
+}
+
 chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
+  if (['iniciarLote', 'pararLote', 'continuarLote', 'esquecerLote'].includes(mensagem?.tipo)) {
+    comandoDoLote(mensagem).then(responder)
+    return true
+  }
   if (mensagem?.tipo === 'manifestoVisto' && remetente.tab?.id) {
     guardarManifesto(remetente.tab.id, mensagem).then(() => responder(true))
     return true

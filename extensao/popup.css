@@ -229,3 +229,18 @@ button:disabled {
   color: var(--azul);
   font-weight: 600;
 }
+
+/* E19: o curso inteiro, abaixo da aula. */
+.lote {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--linha);
+}
+
+.lote-problemas {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  max-height: 120px;
+  overflow: auto;
+}
