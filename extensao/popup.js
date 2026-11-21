@@ -95,7 +95,19 @@ async function mostrarAula() {
   const aba = await abaDaPagina()
   if (!aba) return
   const r = await chrome.runtime.sendMessage({ tipo: 'aulaDaAba', aba }).catch(() => null)
-  if (!r?.aula) return
+  if (!r?.aula) {
+    // A página do curso não respondeu (aberta antes de instalar ou atualizar a extensão, E18): dizer
+    // o que fazer em vez de esconder o bloco. A URL vem da permissão activeTab do clique no ícone.
+    const [ativa] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => [])
+    const curso = ativa?.url && globalThis.Destinos.cursoDaPagina(ativa.url)
+    if (!curso) return
+    $('aula').hidden = false
+    $('aula-plataforma').textContent = curso.nome
+    $('aula-info').textContent = r?.erro || 'Não consegui ler esta página: recarregue a aula e abra o popup de novo.'
+    $('aula-info').classList.add('erro')
+    $('aula-de-novo').hidden = false
+    return
+  }
   const { aula } = r
   $('aula').hidden = false
   $('aula-plataforma').textContent = aula.nomePlataforma
@@ -108,13 +120,14 @@ async function mostrarAula() {
   info.classList.remove('erro')
   $('aula-de-novo').hidden = true
   $('aula-baixar').disabled = true
+  const aviso = aula.erroLeitura ? ` Li só o título da aba (erro ao ler a página: ${aula.erroLeitura}); confira os nomes.` : ''
   if (r.semVideo) {
-    info.textContent = 'Ainda não achei o vídeo: dê play na aula e procure de novo.'
+    info.textContent = 'Ainda não achei o vídeo: dê play na aula e procure de novo.' + aviso
     $('aula-de-novo').hidden = false
     return
   }
   if (r.erro) {
-    info.textContent = r.erro
+    info.textContent = r.erro + aviso
     info.classList.add('erro')
     $('aula-de-novo').hidden = false
     return
@@ -122,7 +135,7 @@ async function mostrarAula() {
   const e = r.estimativa
   const partes = [e.qualidade && `${e.qualidade} (a maior)`, duracaoLegivel(e.duracao), e.tamanho_estimado && `cerca de ${tamanhoLegivel(e.tamanho_estimado)}`]
   if (e.livre) partes.push(`${tamanhoLegivel(e.livre)} livres`)
-  info.textContent = partes.filter(Boolean).join(' · ')
+  info.textContent = partes.filter(Boolean).join(' · ') + aviso
   if (e.aula) {
     const ja = e.aula.estado === 'pronta' ? 'Esta aula já foi baixada.' : e.aula.estado === 'erro' ? 'Esta aula deu erro antes: baixar de novo tenta outra vez.' : 'Esta aula já está na fila.'
     info.textContent += ` ${ja}`

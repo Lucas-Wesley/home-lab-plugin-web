@@ -414,7 +414,26 @@
       return false
     }
     if (mensagem?.tipo === 'aulaDoCurso') {
-      responder(aulaDaPagina())
+      // Se a leitura da página quebrar (DOM de uma plataforma nova), o popup ainda abre a aula com o
+      // título da aba e mostra o erro, em vez de esconder o "Baixar esta aula" sem dizer nada (E18).
+      try {
+        responder(aulaDaPagina())
+      } catch (e) {
+        const curso = cursoDaPagina(location.href)
+        responder(
+          curso && {
+            plataforma: curso.curso,
+            nomePlataforma: curso.nome,
+            titulo: tituloLimpo(document.title),
+            modulo: '',
+            curso: '',
+            pagina: location.href,
+            chaveCurso: chaveDoCurso(location.href),
+            cursoPadrao: cursoPadrao(location.href),
+            erroLeitura: String(e?.message || e),
+          },
+        )
+      }
       return false
     }
     if (mensagem?.tipo === 'enviarDaqui') {

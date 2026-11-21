@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos da Branas.io, LINUXtips, Full Cycle e Tech Leads Club, baixa a aula para a Trilha: pelo popup, pelo botão direito ou pelo botão discreto na página.",
   "icons": {
     "16": "icones/16.png",
@@ -22,6 +22,7 @@
   },
   "permissions": [
     "storage",
+    "activeTab",
     "contextMenus",
     "debugger"
   ],
