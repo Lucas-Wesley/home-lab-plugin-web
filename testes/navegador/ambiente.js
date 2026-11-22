@@ -287,7 +287,8 @@ export const test = base.extend({
     await context.route('https://player.escola-teste.com/**', (route) => {
       const u = new URL(route.request().url())
       if (u.pathname === '/embed/7')
-        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>document.querySelector("video").addEventListener("play", () => fetch("/hls/7/master.m3u8").then((r) => r.text()))</script>' })
+        // Como o SmartPlayer (E23): sem lista mestre; a imagem em duas qualidades e o som, cada um com seu token.
+        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>document.querySelector("video").addEventListener("play", () => { for (const n of ["v7_0_480p.m3u8?token=a", "v7_0_1080p.m3u8?token=b"]) fetch("/c1/v7/" + n).then((r) => r.text()); setTimeout(() => fetch("/c1/v7/v7_0_en_192k.m3u8?token=c").then((r) => r.text()), 2500) })</script>' })
       return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' })
     })
     // Um site qualquer com um player HLS: o player.js roda lá, mas não conta nada (não é aula de curso).

@@ -118,3 +118,20 @@ test('E20: a aula que entrou pela caixa "→ módulo" volta para o módulo dela'
   const m = mapa.cursos[0].modulos.map((x) => [x.nome, x.aulas.map((a) => a.url)])
   assert.deepEqual(JSON.parse(JSON.stringify(m)), [['Partida limpa - Guisados', ['u86']], ['Guia da praça pronta - PDF', ['u88']]])
 })
+
+test('E23: no SmartPlayer, a imagem de maior qualidade e o som da mesma pasta', () => {
+  const m = (url) => ({ url, referer: 'https://player.scaleup.com.br/' })
+  const p = 'https://stream.smartplayer.io/c1/v1/v1'
+  const vistos = [m(`${p}_0_480p.m3u8?token=a`), m(`${p}_0_1080p.m3u8?token=b`), m(`${p}_0_en_192k.m3u8?token=c`)]
+  assert.deepEqual(JSON.parse(JSON.stringify(A.escolherVideo(vistos))), { url: `${p}_0_1080p.m3u8?token=b`, referer: 'https://player.scaleup.com.br/', audio: `${p}_0_en_192k.m3u8?token=c` })
+  // Trocou de aula: vale a pasta do vídeo tocado por último (o som da aula anterior não serve).
+  const q = 'https://stream.smartplayer.io/c1/v2/v2'
+  const depois = [...vistos, m(`${q}_0_1080p.m3u8?token=d`)]
+  assert.equal(A.escolherVideo(depois).url, `${q}_0_1080p.m3u8?token=d`)
+  assert.equal(A.escolherVideo(depois).audio, undefined)
+  assert.ok(A.faltaOSom({ manifesto: `${q}_0_1080p.m3u8?token=d` }))
+  assert.ok(!A.faltaOSom({ manifesto: `${q}_0_1080p.m3u8`, audio: 'x' }))
+  // Com lista mestre (Panda, Bunny), segue como antes, sem som à parte.
+  assert.deepEqual(JSON.parse(JSON.stringify(A.escolherVideo([m('https://b/a/playlist.m3u8'), m('https://b/a/720p/video.m3u8')]))), m('https://b/a/playlist.m3u8'))
+  assert.ok(!A.faltaOSom({ manifesto: 'https://b/a/playlist.m3u8' }))
+})

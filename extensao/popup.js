@@ -287,7 +287,7 @@ function desenharEscola(lote) {
   cursos.replaceChildren()
   problemas.replaceChildren()
   info.classList.remove('erro')
-  for (const id of ['escola-mapear', 'escola-baixar', 'escola-parar', 'escola-continuar', 'escola-esquecer']) $(id).hidden = true
+  for (const id of ['escola-mapear', 'escola-baixar', 'escola-parar', 'escola-continuar', 'escola-refazer', 'escola-esquecer']) $(id).hidden = true
   $('escola-abrir').hidden = true
   $('escola-mapear').textContent = 'Mapear a escola'
   const listar = (itens) => {
@@ -365,6 +365,8 @@ function desenharEscola(lote) {
   $('escola-parar').hidden = !e.rodando
   $('escola-continuar').hidden = e.rodando || e.aulas.every((a) => a.estado === 'enviada' && !a.pdfsFalhos?.length)
   $('escola-esquecer').hidden = e.rodando
+  // E23: passar de novo por todas as aulas (com o mapa salvo); a Trilha não duplica e refaz o vídeo que veio sem som.
+  $('escola-refazer').hidden = e.rodando
   $('escola-abrir').hidden = !conta((a) => a.estado === 'enviada')
 }
 
@@ -397,6 +399,11 @@ async function mostrarEscola(aba, info) {
   $('escola-parar').onclick = () => chrome.runtime.sendMessage({ tipo: 'pararLote' })
   $('escola-continuar').onclick = () => chrome.runtime.sendMessage({ tipo: 'continuarLote', aba })
   $('escola-esquecer').onclick = () => chrome.runtime.sendMessage({ tipo: 'esquecerLote' })
+  $('escola-refazer').onclick = async () => {
+    const { lote: atual } = await chrome.storage.local.get('lote')
+    const marcados = [...new Set((atual?.aulas || []).map((a) => a.curso))]
+    if (marcados.length) chrome.runtime.sendMessage({ tipo: 'baixarEscola', aba, marcados })
+  }
 }
 
 async function iniciar() {

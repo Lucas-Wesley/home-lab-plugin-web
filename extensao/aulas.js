@@ -8,7 +8,11 @@
 
   // O manifesto mestre (com as qualidades) é o que vale: o servidor escolhe a maior. Uma variante
   // (…/720p/video.m3u8) só se o mestre não passou.
-  const ehVariante = (url) => /\/\d{3,4}p\/[^/]*\.m3u8/i.test(url)
+  // E23: também a do SmartPlayer, com a qualidade no nome (…_0_1080p.m3u8), e a do som (…_0_en_192k.m3u8).
+  const ehVariante = (url) => /\/\d{3,4}p\/[^/]*\.m3u8/i.test(url) || qualidadeNoNome(url) > 0 || ehSom(url)
+  const qualidadeNoNome = (url) => Number(/[_-](\d{3,4})p\.m3u8(\?|$)/i.exec(url)?.[1] || 0)
+  const ehSom = (url) => /[_/-](\d{2,3}k|audio|aac)[^/?]*\.m3u8(\?|$)/i.test(url)
+  const pastaDe = (url) => url.split('?')[0].replace(/[^/]*$/, '')
 
   // escolherManifesto: dos manifestos vistos na aba (os mais novos no fim), o mestre mais recente;
   // sem mestre, o mais recente. Trocar de aula sem recarregar (LINUXtips) traz um mestre novo.
@@ -16,6 +20,22 @@
     const lista = (vistos || []).filter((m) => ehManifesto(m.url))
     for (let i = lista.length - 1; i >= 0; i--) if (!ehVariante(lista[i].url)) return lista[i]
     return lista[lista.length - 1] || null
+  }
+
+  // escolherVideo (E23): o que a Trilha baixa. Com uma lista mestre (Panda, Bunny…), ela (a Trilha escolhe
+  // a maior qualidade e o som vem junto). Sem mestre e com a imagem e o som em listas separadas (o
+  // SmartPlayer do Chef Enzo Neto pede …_0_1080p.m3u8, …_0_480p.m3u8 e …_0_en_192k.m3u8), a imagem de maior
+  // qualidade e o som da mesma pasta (a do vídeo tocado por último); sem o som, só a imagem.
+  function escolherVideo(vistos) {
+    const lista = (vistos || []).filter((m) => ehManifesto(m.url))
+    const mestre = [...lista].reverse().find((m) => !ehVariante(m.url))
+    const ultima = [...lista].reverse().find((m) => qualidadeNoNome(m.url) > 0)
+    if (mestre || !ultima) return escolherManifesto(lista)
+    const pasta = pastaDe(ultima.url)
+    const mesmas = lista.filter((m) => pastaDe(m.url) === pasta)
+    const imagem = mesmas.filter((m) => qualidadeNoNome(m.url) > 0).reduce((a, b) => (qualidadeNoNome(b.url) >= qualidadeNoNome(a.url) ? b : a))
+    const som = [...mesmas].reverse().find((m) => ehSom(m.url))
+    return som ? { ...imagem, audio: som.url } : imagem
   }
 
   // chaveDoCurso: o que identifica o curso na URL, para lembrar o nome que o Lucas deu.
@@ -264,5 +284,8 @@
     return lista
   }
 
-  globalThis.Aulas = { ehEmbed, LINK_AULA_ESCOLA, LINK_MODULO_ESCOLA, nomeBonito, semNumero, acrescentarAoMapa, resumoDoMapa, aulasDoMapa, NAO_E_AULA, PROGRESSO, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
+  // faltaOSom (E23): a imagem veio numa lista de uma qualidade só (SmartPlayer) e o som ainda não.
+  const faltaOSom = (v) => !!v?.manifesto && !v.audio && qualidadeNoNome(v.manifesto) > 0
+
+  globalThis.Aulas = { faltaOSom, escolherVideo, ehEmbed, LINK_AULA_ESCOLA, LINK_MODULO_ESCOLA, nomeBonito, semNumero, acrescentarAoMapa, resumoDoMapa, aulasDoMapa, NAO_E_AULA, PROGRESSO, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
 })()

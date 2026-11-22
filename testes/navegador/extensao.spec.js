@@ -399,7 +399,9 @@ test('no Chef Enzo Neto, o popup mapeia a escola pela vitrine e manda cada aula,
   expect(pedidos[1].embed).toBe('https://www.youtube.com/embed/AAAAAAAAAA1?controls=0&rel=0')
   expect(pedidos[1].referer).toBe('https://aluno.enzoneto.com/')
   expect(pedidos[1].manifesto).toBeUndefined()
-  expect(pedidos[6].manifesto).toBe('https://player.escola-teste.com/hls/7/master.m3u8')
+  // O SmartPlayer: a imagem de maior qualidade e o som (que chega depois) vão juntos (E23).
+  expect(pedidos[6].manifesto).toBe('https://player.escola-teste.com/c1/v7/v7_0_1080p.m3u8?token=b')
+  expect(pedidos[6].audio).toBe('https://player.escola-teste.com/c1/v7/v7_0_en_192k.m3u8?token=c')
   expect(pedidos[6].referer).toBe('https://player.escola-teste.com/')
   expect(pedidos[4].modulo).toBe('Praça pronta - Bases e temperos')
   // O texto da página, sem as listas de afiliados; a aula sem vídeo leva só o texto e o PDF.

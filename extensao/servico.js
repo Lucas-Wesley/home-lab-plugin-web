@@ -138,7 +138,7 @@ chrome.contextMenus.onClicked.addListener(async (info, aba) => {
 // Baixar a aula do curso (E15): o player.js conta os manifestos HLS de cada aba (guardados aqui,
 // na sessão do navegador: o serviço pode dormir entre a aula tocar e o Lucas abrir o popup); o
 // popup pede a estimativa e o download à Trilha (T50 de lá), que baixa no servidor.
-const { escolherManifesto, acrescentarAoMapa, aulasDoMapa } = globalThis.Aulas
+const { escolherManifesto, escolherVideo, faltaOSom, acrescentarAoMapa, aulasDoMapa } = globalThis.Aulas
 
 async function manifestosDaAba(aba) {
   const chave = `manifestos:${aba}`
@@ -175,8 +175,9 @@ function guardarEmbed(aba, { url, referer }) {
 
 // videoDaAba: o vídeo da aula aberta — o HLS (o melhor) ou o player embutido, ou null.
 async function videoDaAba(aba, aula) {
-  const m = escolherManifesto(await manifestosDaAba(aba))
-  if (m) return { manifesto: m.url, referer: m.referer }
+  // E23: a imagem e, quando vem separado (SmartPlayer), o som.
+  const m = escolherVideo(await manifestosDaAba(aba))
+  if (m) return { manifesto: m.url, referer: m.referer, ...(m.audio ? { audio: m.audio } : {}) }
   const e = (await embedsDaAba(aba)).at(-1) || aula?.embeds?.at(-1)
   return e ? { embed: e.url, referer: e.referer } : null
 }
@@ -263,6 +264,11 @@ async function baixarDaLista(lote, aula) {
     video = await videoDaAba(lote.aba)
     // E20: a página sem <video> e sem iframe (aula de texto ou PDF) não vai ganhar um: 3 vezes e segue.
     if (!video && r && typeof r === 'object' && !r.videos && !r.quadros && ++semPlayer >= 3) break
+  }
+  // E23: o SmartPlayer pede a imagem e o som em listas separadas, quase juntas: espera o som um pouco.
+  for (let t = 0; t < 5 && faltaOSom(video); t++) {
+    await esperar(2000)
+    video = await videoDaAba(lote.aba)
   }
   await chrome.tabs.sendMessage(lote.aba, { tipo: 'pausar' }).catch(() => 0)
   const lida = await chrome.tabs.sendMessage(lote.aba, { tipo: 'aulaDoCurso' }).catch(() => null)
