@@ -202,23 +202,30 @@ async function aulaDaAba(aba) {
   }
 }
 
-async function baixarAula(pedido) {
+async function baixarAula({ anexos, ...pedido }, aba) {
   const { enderecos } = await ajustes()
   const base = enderecos.trilha.replace(/\/+$/, '')
   let resultado
   try {
     const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
     const abrir = `${base}/#/entrada/cursos`
+    if ((status === 202 || status === 200) && aba && anexos?.length) {
+      const r = await mandarAnexos(aba, dados?.aula?.id, anexos)
+      if (dados) dados.pdfs = r
+    }
     if (status === 202 && dados?.aula?.estado === 'texto') resultado = { estado: 'enviado', mensagem: 'O texto da aula foi para a Trilha (ela não tem vídeo)', abrir }
     else if (status === 202) resultado = { estado: 'enviado', mensagem: 'Na fila de downloads da Trilha', abrir }
     else if (status === 200 && dados?.repetida) resultado = { estado: 'repetido', mensagem: dados.aula?.estado === 'pronta' ? 'Esta aula já foi baixada' : 'Esta aula já está na fila', abrir }
     else resultado = { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}`, abrir: '' }
+    resultado = resultadoComPdfs(resultado, dados)
   } catch {
     resultado = { estado: 'erro', mensagem: 'Sem conexão com a Trilha: só funciona na rede de casa.', abrir: '' }
   }
   await guardarNoHistorico({ app: 'trilha', url: pedido.pagina, titulo: pedido.titulo, resultado })
   return resultado
 }
+// O resultado da aula diz também os PDFs (E22).
+const resultadoComPdfs = (resultado, dados) => (dados?.pdfs ? { ...resultado, mensagem: comAnexos(resultado.mensagem, dados.pdfs) } : resultado)
 
 // E19: baixar o curso inteiro. A aba do curso passa por cada aula da lista (uma por vez, com uma
 // pausa entre elas), dá play sem som até o player pedir o vídeo, e a aula vai à fila da Trilha com a
@@ -274,17 +281,53 @@ async function baixarDaLista(lote, aula) {
     ...(aula.ordem ? { ordem: aula.ordem } : {}),
     ...(lote.trilha ? { trilha: true } : {}),
   }
+  let status, dados
   try {
-    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
-    const naTrilha = dados?.trilha_erro ? ` (a trilha não atualizou: ${dados.trilha_erro})` : ''
-    if (status === 202 && !video) return { estado: 'enviada', soTexto: true, mensagem: 'Só o texto (a aula não tem vídeo)' + naTrilha }
-    if (status === 202) return { estado: 'enviada', mensagem: 'Na fila da Trilha' + naTrilha }
-    if (status === 200 && dados?.repetida) return { estado: 'enviada', soTexto: !video, mensagem: (dados.aula?.estado === 'pronta' ? 'Já baixada' : 'Já estava na Trilha') + naTrilha }
-    return { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}` }
+    ;({ status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido }))
   } catch {
     return { estado: 'erro', mensagem: 'Sem conexão com a Trilha' }
   }
+  if (status !== 202 && !(status === 200 && dados?.repetida)) return { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}` }
+  const naTrilha = dados?.trilha_erro ? ` (a trilha não atualizou: ${dados.trilha_erro})` : ''
+  const anexos = lida?.escola ? await mandarAnexos(lote.aba, dados?.aula?.id, lida.anexos) : { enviados: 0, falhas: [] }
+  const extra = { pdfs: anexos.enviados, ...(anexos.falhas.length ? { pdfsFalhos: anexos.falhas } : {}) }
+  if (status === 202 && !video) return { estado: 'enviada', soTexto: true, mensagem: comAnexos('Só o texto (a aula não tem vídeo)', anexos) + naTrilha, ...extra }
+  if (status === 202) return { estado: 'enviada', mensagem: comAnexos('Na fila da Trilha', anexos) + naTrilha, ...extra }
+  return { estado: 'enviada', soTexto: !video, mensagem: comAnexos(dados.aula?.estado === 'pronta' ? 'Já baixada' : 'Já estava na Trilha', anexos) + naTrilha, ...extra }
 }
+
+// E22: os PDFs da aula vão inteiros para a Trilha. A página baixa cada um (com o login dela) e manda
+// em partes (como o PDF da Biblioteca, E12); o serviço junta e envia a POST /api/cursos/aulas/{id}/anexos.
+async function mandarAnexos(aba, aulaId, anexos) {
+  const r = { enviados: 0, falhas: [] }
+  if (!aulaId || !anexos?.length) return r
+  const { enderecos } = await ajustes()
+  for (const x of anexos) {
+    const id = crypto.randomUUID()
+    const lido = await chrome.tabs.sendMessage(aba, { tipo: 'baixarAnexo', url: x.url, id }).catch(() => null)
+    const partes = pdfs.get(id) || []
+    pdfs.delete(id)
+    if (!lido || lido.erro || !partes.length) {
+      r.falhas.push(`${x.nome}: ${lido?.erro || 'a página não respondeu'}`)
+      continue
+    }
+    const form = new FormData()
+    form.append('nome', x.nome)
+    form.append('url', x.url)
+    form.append('file', new Blob(partes, { type: 'application/pdf' }), x.nome)
+    try {
+      const { status, dados } = await chamar(enderecos.trilha, `/api/cursos/aulas/${aulaId}/anexos`, { metodo: 'POST', formulario: form })
+      if (status === 201 || status === 200) r.enviados++
+      else r.falhas.push(`${x.nome}: ${dados?.erro || `a Trilha respondeu ${status}`}`)
+    } catch {
+      r.falhas.push(`${x.nome}: sem conexão com a Trilha`)
+    }
+  }
+  return r
+}
+
+const comAnexos = (mensagem, r) =>
+  r.enviados || r.falhas.length ? `${mensagem} · ${r.enviados} PDF${r.enviados === 1 ? '' : 's'}${r.falhas.length ? ` (falhou: ${r.falhas.join('; ')})` : ''}` : mensagem
 
 // E20: mapear a escola inteira. A aba abre a vitrine (as fileiras são os cursos, os cartões levam aos
 // módulos) e depois cada módulo, e lê as aulas de cada um ("N aulas" + a lista). Nada é baixado: no fim,
@@ -390,7 +433,8 @@ async function comandoDoLote(mensagem) {
     await chrome.storage.local.set({ lote: { ...lote, aba: mensagem.aba || lote.aba, rodando: true, aviso: '' } })
   } else if (lote && mensagem.tipo === 'continuarLote') {
     // Continuar refaz as que deram erro ou ficaram sem vídeo, na aba de onde o Lucas pediu.
-    const aulas = lote.aulas.map((a) => (a.estado === 'enviada' ? a : { url: a.url, titulo: a.titulo, modulo: a.modulo, curso: a.curso, ordem: a.ordem }))
+    // A aula que foi mas cujo PDF falhou também passa de novo (a Trilha não duplica: troca o arquivo).
+    const aulas = lote.aulas.map((a) => (a.estado === 'enviada' && !a.pdfsFalhos?.length ? a : { url: a.url, titulo: a.titulo, modulo: a.modulo, curso: a.curso, ordem: a.ordem }))
     await chrome.storage.local.set({ lote: { ...lote, aba: mensagem.aba || lote.aba, aulas, rodando: true, aviso: '' } })
   } else if (mensagem.tipo === 'esquecerLote') {
     await chrome.storage.local.remove('lote')
@@ -417,7 +461,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
     return true
   }
   if (mensagem?.tipo === 'baixarAula') {
-    baixarAula(mensagem.pedido).then(responder)
+    baixarAula(mensagem.pedido, mensagem.aba).then(responder)
     return true
   }
   return false

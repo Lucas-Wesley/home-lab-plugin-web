@@ -382,7 +382,7 @@ test('no Chef Enzo Neto, o popup mapeia a escola pela vitrine e manda cada aula,
 
   await popup.locator('#escola-cursos li', { hasText: 'Curso 2' }).getByRole('checkbox').uncheck()
   await popup.getByRole('button', { name: 'Baixar as aulas marcadas' }).click()
-  await expect(popup.locator('#escola-info')).toContainText('7 de 7 · 6 vídeos na Trilha · 1 só texto', { timeout: 120000 })
+  await expect(popup.locator('#escola-info')).toContainText('7 de 7 · 6 vídeos na Trilha · 1 só texto · 1 PDF', { timeout: 120000 })
   await expect(popup.locator('#escola-link')).toHaveAttribute('href', `${apps.endereco}/#/trilhas/grupo/Chef%20Enzo%20Neto`)
   const pedidos = apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas').map((r) => r.corpo)
   expect(pedidos.map((p) => [p.curso, p.ordem, p.titulo])).toEqual([
@@ -410,7 +410,15 @@ test('no Chef Enzo Neto, o popup mapeia a escola pela vitrine e manda cada aula,
   expect(pedidos[3].embed).toBeUndefined()
   expect(pedidos[3].manifesto).toBeUndefined()
   expect(pedidos[3].texto).toContain('O guia completo da praça pronta')
-  expect(pedidos[3].texto).toContain('[Baixar o PDF](https://cdn.escola-teste.com/guia-praca-pronta.pdf)')
+  // O PDF vai inteiro para a Trilha (E22); no texto, só o nome.
+  expect(pedidos[3].texto).toContain('- Guia da praça pronta - Ebook Virtual.pdf')
+  expect(pedidos[3].texto).not.toContain('signature')
+  const anexos = apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas/9/anexos')
+  expect(anexos).toHaveLength(1)
+  expect(anexos[0].tipo).toContain('multipart/form-data')
+  expect(anexos[0].corpo).toContain('%PDF-1.4')
+  expect(anexos[0].corpo).toContain('Guia da pra') // o nome vai no formulário
+  expect(pedidos.some((p) => 'anexos' in p)).toBe(false) // a lista não vai no corpo da aula
 })
 
 test('no Chef Enzo Neto, a aula aberta vai com o vídeo embutido, o texto e a trilha do curso (E20)', async ({ page, context, apps, extensao }) => {

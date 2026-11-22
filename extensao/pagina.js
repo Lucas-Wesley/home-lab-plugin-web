@@ -402,6 +402,7 @@
         chaveCurso: chaveDoCurso(location.href),
         cursoPadrao: nomeBonito(caminhoDaEscola()),
         texto: textoDaAula(titulo),
+        anexos: anexosDaPagina(),
         embeds: embedsDaPagina(),
       }
     }
@@ -592,18 +593,60 @@
       else if (el.tagName === 'LI') linhas.push(`- ${t}`)
       else linhas.push(t, '')
     }
+    // Os PDFs vão inteiros para a Trilha (E22); no texto, só o nome (o link da escola expira).
+    const anexos = anexosDaPagina()
+    if (anexos.length) linhas.push('', '## Anexos', '', ...anexos.map((x) => `- ${x.nome}`))
+    return linhas.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  }
+
+  // anexosDaPagina (E22): os PDFs da aula. Na Cademí, o anexo é um link da própria escola
+  // (<a class="article-attach" href="/area/arquivo/anexo?…&n=<nome>.pdf&signature=…">, o texto é o nome e o
+  // tamanho, "Tabela…-print.pdf 6.2 MB"), que redireciona para um endereço assinado de upload.cademi.cloud.
+  // Também vale o link ou o quadro que termina em .pdf.
+  function anexosDaPagina() {
     const anexos = []
+    const ehPdf = (u) => /\.pdf$/i.test(u.pathname) || /\.pdf$/i.test(u.searchParams.get('n') || '')
+    const juntar = (url, nome) => {
+      if (!anexos.some((x) => x.url === url)) anexos.push({ url, nome })
+    }
     for (const a of document.querySelectorAll('a[href]')) {
-      const nome = textoDe(a) || a.getAttribute('download') || ''
-      if (!/\.pdf(\?|#|$)/i.test(a.href) && !a.hasAttribute('download') && !/^(baixar|download)\b/i.test(nome)) continue
-      if (!anexos.some((x) => x.url === a.href)) anexos.push({ nome: nome || 'Anexo', url: a.href })
+      let u
+      try {
+        u = new URL(a.getAttribute('href'), location.href)
+      } catch {
+        continue
+      }
+      const daEscola = u.origin === location.origin && u.pathname.startsWith('/area/arquivo/anexo')
+      if (!daEscola && !a.classList.contains('article-attach') && !ehPdf(u)) continue
+      const nome = (u.searchParams.get('n') || textoDe(a).replace(/\s+[\d.,]+\s*[KMG]?B$/i, '') || decodeURIComponent(u.pathname.split('/').pop() || '') || 'anexo.pdf').trim()
+      juntar(u.href, /\.pdf$/i.test(nome) ? nome : `${nome}.pdf`)
     }
     for (const f of document.querySelectorAll('iframe[src], embed[src], object[data]')) {
       const url = f.src || f.data
-      if (/\.pdf(\?|#|$)/i.test(url) && !anexos.some((x) => x.url === url)) anexos.push({ nome: 'PDF da aula', url })
+      try {
+        if (ehPdf(new URL(url, location.href))) juntar(new URL(url, location.href).href, decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()))
+      } catch {}
     }
-    if (anexos.length) linhas.push('', '## Anexos', '', ...anexos.map((x) => `- [${x.nome}](${x.url})`))
-    return linhas.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    return anexos
+  }
+
+  // baixarAnexo (E22): a página baixa o PDF com o login dela (o pedido à escola vai com o cookie; o
+  // endereço assinado para onde ela manda aceita qualquer origem) e manda ao serviço em partes.
+  async function baixarAnexo(url, id) {
+    let arquivo
+    try {
+      const resposta = await fetch(url)
+      if (!resposta.ok) return { erro: `a escola respondeu ${resposta.status}` }
+      arquivo = await resposta.blob()
+    } catch (e) {
+      return { erro: `não deu para baixar (${e.message})` }
+    }
+    const inicio = new TextDecoder().decode(await arquivo.slice(0, 5).arrayBuffer())
+    if (inicio !== '%PDF-') return { erro: 'o link não devolveu um PDF (o login caiu?)' }
+    for (let i = 0; i < arquivo.size; i += PARTE) {
+      await chrome.runtime.sendMessage({ tipo: 'pdfParte', id, dados: await emBase64(arquivo.slice(i, i + PARTE)) })
+    }
+    return { tamanho: arquivo.size }
   }
 
   // E19: a lista de aulas da barra lateral (Tech Leads Club, uma comunidade Circle): o link de cada
@@ -669,6 +712,10 @@
     if (mensagem?.tipo === 'modulosDaPagina') {
       responder(cursoDaPagina(location.href)?.escola ? modulosDaPagina() : null)
       return false
+    }
+    if (mensagem?.tipo === 'baixarAnexo') {
+      baixarAnexo(mensagem.url, mensagem.id).then(responder)
+      return true
     }
     if (mensagem?.tipo === 'expandirModulos') {
       responder(expandirModulos())

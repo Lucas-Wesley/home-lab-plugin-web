@@ -11,7 +11,7 @@ Biblioteca (E12); nas aulas da Branas.io, LINUXtips, Full Cycle e Tech Leads Clu
 ## Contexto do ecossistema
 Visão geral, roadmap e contrato comum no repo **Hub**: `github.com/Lucas-Wesley/hub-home-lab-web`
 (pasta `docs/`). A extensão usa as APIs que os apps já têm (`POST /api/entrada` da Trilha, `POST /api/referencias` do Acervo,
-`POST /api/links` e `GET /api/baralhos` do Flashcards, `POST /api/books` da Biblioteca, `POST /api/cursos/estimar` e `POST /api/cursos/aulas` da Trilha, que aceitam `embed`, `texto`, `ordem` e `trilha` desde E20/T55): mudar uma delas é mudar
+`POST /api/links` e `GET /api/baralhos` do Flashcards, `POST /api/books` da Biblioteca, `POST /api/cursos/estimar` e `POST /api/cursos/aulas` da Trilha, que aceitam `embed`, `texto`, `ordem` e `trilha` desde E20/T55, e `POST /api/cursos/aulas/{id}/anexos` para os PDFs, E22/T56): mudar uma delas é mudar
 os dois lados.
 
 ## Regras e convenções (IMPORTANTE)

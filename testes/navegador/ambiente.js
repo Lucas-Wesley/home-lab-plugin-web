@@ -37,6 +37,10 @@ function appsFalsos() {
         vistos.add('livro')
         return ja ? responder(409, { error: 'esse livro já está na biblioteca' }) : responder(201, { id: 'livro1', title: 'x' })
       }
+      if (req.method === 'POST' && /^\/api\/cursos\/aulas\/\d+\/anexos$/.test(req.url)) {
+        recebidos.push({ metodo: req.method, caminho: req.url, tipo: req.headers['content-type'], corpo: bruto.toString('latin1') })
+        return responder(201, { anexo: { id: 1, nome: 'x.pdf', tamanho: bruto.length } })
+      }
       const dados = bruto.length ? JSON.parse(bruto.toString('utf8')) : null
       recebidos.push({ metodo: req.method, caminho: req.url, corpo: dados })
       if (req.method === 'POST' && req.url === '/api/referencias') {
@@ -153,7 +157,7 @@ function paginaDaEscola(caminho) {
     ? `<h3>LINK UTENSÍLIOS</h3><h3>MERCADO LIVRE</h3><div class="afiliado"><p><b>Minhas listas de recomendações</b></p><p>Lista de afiliados</p><p>https://www.mercadolivre.com.br/social/enzoneto</p></div>
        <p>Transcrição</p><p>Vamos começar a aula ${a.titulo} e aqui eu quero deixar a primeira regra para você.</p>
        <ul><li><b>Preparação prévia</b></li><li>Porcionar as proteínas antes de grelhar.</li></ul>`
-    : '<p>O guia completo da praça pronta, para imprimir.</p><a href="https://cdn.escola-teste.com/guia-praca-pronta.pdf">Baixar o PDF</a>'
+    : `<p>O guia completo da praça pronta, para imprimir.</p><a href="/area/arquivo/anexo?a=01M3ZC&amp;c=texto&amp;n=Guia%20da%20pra%C3%A7a%20pronta%20-%20Ebook%20Virtual.pdf&amp;o=${n}&amp;t=aula&amp;signature=abc" class="article-attach p-3" target="_blank"><span>Guia da praça pronta - Ebook Virtual.pdf</span><span>2.1 MB</span></a>`
   return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}
     <main>${video}<div class="caminho"><a href="/area/vitrine/home">Início</a><span>›</span><a>${produto}</a></div>
       <h4 style="font-size:22px">${a.titulo}</h4>${conteudo}</main>${lateral}</body></html>`
@@ -273,7 +277,11 @@ export const test = base.extend({
     // o caminho "Início › …", o título, as listas de afiliados e o texto.
     await context.route('https://aluno.enzoneto.com/**', (route) => {
       const u = new URL(route.request().url())
-      const body = paginaDaEscola(u.pathname)
+      // No site, o link do anexo redireciona (302) para upload.cademi.cloud, que responde com
+    // Access-Control-Allow-Origin: *; o fetch padrão da página segue e lê (conferido em 22/11 com dois servidores
+    // HTTP de verdade). O route do Playwright não segue redirecionamento entre origens num fetch: aqui o PDF vem direto.
+    if (u.pathname === '/area/arquivo/anexo') return route.fulfill({ contentType: 'application/pdf', body: PDF })
+    const body = paginaDaEscola(u.pathname)
       return body ? route.fulfill({ contentType: 'text/html; charset=utf-8', body }) : route.fulfill({ status: 404, body: 'não' })
     })
     await context.route('https://player.escola-teste.com/**', (route) => {

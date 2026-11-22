@@ -156,7 +156,7 @@ async function mostrarAula() {
     titulo,
     pagina: aula.pagina,
     ...(r.video || {}),
-    ...(aula.escola ? { texto: aula.texto || '', trilha: true, ...(daEscola ? { ordem: daEscola.ordem } : {}) } : {}),
+    ...(aula.escola ? { texto: aula.texto || '', trilha: true, anexos: aula.anexos || [], ...(daEscola ? { ordem: daEscola.ordem } : {}) } : {}),
   })
   $('aula-baixar').onclick = () => enviarAula(pedidoDaAula, cursos, aula)
   if (r.semVideo) {
@@ -200,7 +200,7 @@ async function enviarAula(pedidoDaAula, cursos, aula) {
   $('aula-baixar').disabled = true
   $('aula-baixar').textContent = 'Enviando…'
   await chrome.storage.local.set({ cursos: { ...cursos, [aula.chaveCurso]: curso } })
-  const res = await chrome.runtime.sendMessage({ tipo: 'baixarAula', pedido: pedidoDaAula(curso, titulo) })
+  const res = await chrome.runtime.sendMessage({ tipo: 'baixarAula', pedido: pedidoDaAula(curso, titulo), aba: await abaDaPagina() })
   $('aula-baixar').textContent = rotulo
   const p = $('aula-resultado')
   p.hidden = false
@@ -353,12 +353,17 @@ function desenharEscola(lote) {
   const feitas = conta((a) => a.estado)
   const partes = [`${feitas} de ${e.aulas.length}`, `${conta((a) => a.estado === 'enviada' && !a.soTexto)} vídeos na Trilha`]
   if (conta((a) => a.soTexto)) partes.push(`${conta((a) => a.soTexto)} só texto`)
+  const pdfs = e.aulas.reduce((n, a) => n + (a.pdfs || 0), 0)
+  if (pdfs) partes.push(`${pdfs} PDF${pdfs === 1 ? '' : 's'}`)
   if (conta((a) => a.estado === 'sem_video')) partes.push(`${conta((a) => a.estado === 'sem_video')} sem vídeo`)
   if (conta((a) => a.estado === 'erro')) partes.push(`${conta((a) => a.estado === 'erro')} com erro`)
   info.textContent = partes.join(' · ') + (e.rodando ? (e.atual ? ` · agora: ${e.atual}` : '') : e.aviso ? ` · ${e.aviso}` : feitas === e.aulas.length ? ' · terminou' : ' · parado')
-  listar(e.aulas.filter((a) => a.estado === 'erro' || a.estado === 'sem_video').map((a) => `${a.curso} › ${a.titulo}: ${a.mensagem}`))
+  listar([
+    ...e.aulas.filter((a) => a.estado === 'erro' || a.estado === 'sem_video').map((a) => `${a.curso} › ${a.titulo}: ${a.mensagem}`),
+    ...e.aulas.filter((a) => a.pdfsFalhos?.length).map((a) => `${a.curso} › ${a.titulo}: PDF não veio (${a.pdfsFalhos.join('; ')})`),
+  ])
   $('escola-parar').hidden = !e.rodando
-  $('escola-continuar').hidden = e.rodando || e.aulas.every((a) => a.estado === 'enviada')
+  $('escola-continuar').hidden = e.rodando || e.aulas.every((a) => a.estado === 'enviada' && !a.pdfsFalhos?.length)
   $('escola-esquecer').hidden = e.rodando
   $('escola-abrir').hidden = !conta((a) => a.estado === 'enviada')
 }
