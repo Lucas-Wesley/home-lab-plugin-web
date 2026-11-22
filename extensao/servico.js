@@ -262,8 +262,9 @@ async function baixarDaLista(lote, aula) {
     const r = await chrome.tabs.sendMessage(lote.aba, { tipo: 'tocarMudo' }).catch(() => null)
     await esperar(2000)
     video = await videoDaAba(lote.aba)
-    // E20: a página sem <video> e sem iframe (aula de texto ou PDF) não vai ganhar um: 3 vezes e segue.
-    if (!video && r && typeof r === 'object' && !r.videos && !r.quadros && ++semPlayer >= 3) break
+    // E20: a página sem <video> e sem iframe (aula de texto ou PDF) não vai ganhar um: 8 vezes (~20 s) e segue.
+    // E25: eram 3 (~6 s), e 6 aulas do Café minuto, cujo player demorou, foram só como texto.
+    if (!video && r && typeof r === 'object' && !r.videos && !r.quadros && ++semPlayer >= 8) break
   }
   // E23: o SmartPlayer pede a imagem e o som em listas separadas, quase juntas: espera o som um pouco.
   for (let t = 0; t < 5 && faltaOSom(video); t++) {

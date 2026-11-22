@@ -442,6 +442,9 @@ test('no Chef Enzo Neto, o curso que a vitrine não mostra se mapeia de dentro d
     ['Comida com assinatura', 1, 'Boas vindas', true],
     ['Comida com assinatura', 2, 'O tripé - base, personalidade e frescor', true],
   ])
+  // E25: o texto começa depois do caminho (o título da página difere do da lista) e para nos comentários; o menu não entra.
+  expect(pedidos[0].texto).toContain('Vamos começar a aula Boas vindas')
+  expect(pedidos[0].texto).not.toMatch(/Comentários|Animada|Sem notificações|Pagina inicial|SUPORTE|Comida com assinatura/)
   // Terminado o download, dá para mapear de novo sem limpar; o mapa da escola inteira passa a incluir o curso.
   await popup.getByRole('button', { name: 'Mapear de novo' }).click()
   await expect(popup.locator('#escola-info')).toContainText('Achei 4 cursos e 10 aulas', { timeout: 90000 })

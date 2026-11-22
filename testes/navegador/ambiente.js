@@ -102,7 +102,8 @@ const AULAS_DA_ESCOLA = {
   7: { titulo: 'Molho de tomate base', video: 'hls', lista: '1. Molho de tomate base' },
   8: { titulo: 'Como usar o Enzap', video: 'youtube:AAAAAAAAAA8' },
   // E24: o curso da fileira "Black Friday" (um módulo só; o cartão da vitrine não leva a um módulo).
-  9: { titulo: 'Boas vindas', video: 'youtube:AAAAAAAAAA9', lista: '1. Boas vindas' },
+  // E25: o título da página difere do da lista; depois do texto, os comentários e o menu das notificações.
+  9: { titulo: 'Boas vindas', pagina: 'Boas-vindas ao curso', video: 'youtube:AAAAAAAAAA9', lista: '1. Boas vindas', comentarios: true },
   10: { titulo: 'O tripé - base, personalidade e frescor', video: 'youtube:AAAAAAAAA10', lista: '2. O tripé - base, personalidade e frescor' },
 }
 
@@ -129,6 +130,9 @@ function lateralDoModulo(id) {
 }
 
 const moduloDaAula = (n) => (n >= 9 ? 400 : n === 8 ? 300 : n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
+
+const COMENTARIOS_DA_AULA = `<div class="comentarios"><div class="abas"><a>Comentários, duvidas e pertguntas</a></div>
+  <div class="comentario"><p>Fernanda D.</p><p>Animada por dar início a mais um curso do Enzo</p></div></div>`
 
 function paginaDaEscola(caminho) {
   const topo = '<header><a href="/area/vitrine/home">Pagina inicial</a><a>SUPORTE</a><button aria-expanded="false">Perfil</button></header>'
@@ -166,7 +170,8 @@ function paginaDaEscola(caminho) {
     : `<p>O guia completo da praça pronta, para imprimir.</p><a href="/area/arquivo/anexo?a=01M3ZC&amp;c=texto&amp;n=Guia%20da%20pra%C3%A7a%20pronta%20-%20Ebook%20Virtual.pdf&amp;o=${n}&amp;t=aula&amp;signature=abc" class="article-attach p-3" target="_blank"><span>Guia da praça pronta - Ebook Virtual.pdf</span><span>2.1 MB</span></a>`
   return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}
     <main>${video}<div class="caminho"><a href="/area/vitrine/home">Início</a><span>›</span><a>${produto}</a></div>
-      <h4 style="font-size:22px">${a.titulo}</h4>${conteudo}</main>${lateral}</body></html>`
+      <h4 style="font-size:22px">${a.pagina || a.titulo}</h4>${conteudo}${a.comentarios ? COMENTARIOS_DA_AULA : ''}</main>${lateral}
+    ${a.comentarios ? '<div class="menu-topo"><p>Sem notificações</p><ul><li><a href="/area/vitrine/home">Pagina inicial</a></li><li>SUPORTE</li></ul></div>' : ''}</body></html>`
 }
 
 export const test = base.extend({

@@ -549,6 +549,16 @@
     return n
   }
 
+  // E25: o bloco do caminho "Início › …" (o texto da aula vem depois dele).
+  function blocoDoCaminho() {
+    const inicio = [...document.querySelectorAll('a, span, li, div')].find((el) => /^in[ií]cio$/i.test(textoProprio(el)) && visivel(el))
+    for (let a = inicio?.parentElement, n = 0; a && n < 4; a = a.parentElement, n++)
+      if ([...a.querySelectorAll('*')].some((x) => textoProprio(x) && !/^in[ií]cio$/i.test(textoProprio(x)) && !/^[›>/»|]$/.test(textoProprio(x)))) return a
+    return inicio || null
+  }
+  const COMENTARIOS = /^coment[áa]rios\b/i
+  const MENU_ESCOLA = /^(sem notifica[çc][õo]es|p[áa]gina inicial|suporte)$/i
+
   // O curso pelo caminho "Início › Praças - CDPS" (o nome do produto na Cademí).
   function caminhoDaEscola() {
     const inicio = [...document.querySelectorAll('a, span, li, div')].find((el) => /^in[ií]cio$/i.test(textoProprio(el)) && visivel(el))
@@ -581,10 +591,19 @@
     while (lateral && !links.every((l) => lateral.contains(l))) lateral = lateral.parentElement
     if (!lateral || lateral === document.body || (eTitulo && lateral.contains(eTitulo))) lateral = null
     const naLista = (el) => (lateral && lateral.contains(el)) || !!el.closest(LINKS) || !!el.closest('ul, ol, nav, aside')?.querySelector(LINKS)
-    const depois = (el) => !eTitulo || !!(eTitulo.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+    // E25: sem o título (o da página difere do da lista), o texto começa depois do caminho "Início › …".
+    const marco = eTitulo || blocoDoCaminho()
+    const depois = (el) => !marco || (!marco.contains(el) && !!(marco.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING))
+    // E25: os comentários dos alunos (e o que vem depois deles) não são a aula.
+    const comentarios = [...document.querySelectorAll('h1, h2, h3, h4, h5, h6, a, button, div, span, p, li')].find(
+      (el) => COMENTARIOS.test(textoProprio(el)) && visivel(el),
+    )
+    const antes = (el) => !comentarios || !!(el.compareDocumentPosition(comentarios) & Node.DOCUMENT_POSITION_FOLLOWING)
     const linhas = []
     for (const el of document.querySelectorAll(BLOCOS)) {
-      if (el.closest('header, footer, script, style, noscript, homelab-envio') || el === eTitulo || !depois(el) || naLista(el)) continue
+      if (el.closest('header, footer, script, style, noscript, homelab-envio') || el === eTitulo || !depois(el) || !antes(el) || naLista(el)) continue
+      // E25: o menu do topo e as notificações, que a escola põe no fim da página.
+      if (el.closest('nav, [role="menu"], [role="navigation"], .dropdown-menu, .offcanvas, [class*="notific" i], [id*="notific" i]') || MENU_ESCOLA.test(textoDe(el))) continue
       // O bloco que tem outro bloco dentro (um <li> com <p>) vai pelos de dentro.
       if (el.querySelector(BLOCOS)) continue
       const t = textoDe(el)
