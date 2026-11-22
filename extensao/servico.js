@@ -138,7 +138,7 @@ chrome.contextMenus.onClicked.addListener(async (info, aba) => {
 // Baixar a aula do curso (E15): o player.js conta os manifestos HLS de cada aba (guardados aqui,
 // na sessão do navegador: o serviço pode dormir entre a aula tocar e o Lucas abrir o popup); o
 // popup pede a estimativa e o download à Trilha (T50 de lá), que baixa no servidor.
-const { escolherManifesto } = globalThis.Aulas
+const { escolherManifesto, acrescentarAoMapa, aulasDoMapa } = globalThis.Aulas
 
 async function manifestosDaAba(aba) {
   const chave = `manifestos:${aba}`
@@ -158,24 +158,47 @@ function guardarManifesto(aba, { url, referer }) {
   return gravando
 }
 
+// E20: o player embutido do YouTube/Vimeo que o player.js viu na aba (a Trilha baixa pelo yt-dlp).
+async function embedsDaAba(aba) {
+  const chave = `embeds:${aba}`
+  return (await chrome.storage.session.get(chave))[chave] || []
+}
+function guardarEmbed(aba, { url, referer }) {
+  gravando = gravando.then(async () => {
+    const chave = `embeds:${aba}`
+    const lista = (await embedsDaAba(aba)).filter((m) => m.url !== url)
+    lista.push({ url, referer, quando: Date.now() })
+    await chrome.storage.session.set({ [chave]: lista.slice(-5) })
+  }).catch(() => {})
+  return gravando
+}
+
+// videoDaAba: o vídeo da aula aberta — o HLS (o melhor) ou o player embutido, ou null.
+async function videoDaAba(aba, aula) {
+  const m = escolherManifesto(await manifestosDaAba(aba))
+  if (m) return { manifesto: m.url, referer: m.referer }
+  const e = (await embedsDaAba(aba)).at(-1) || aula?.embeds?.at(-1)
+  return e ? { embed: e.url, referer: e.referer } : null
+}
+
 // A página recarregou ou fechou: os manifestos da aula anterior não valem mais.
 chrome.tabs.onUpdated.addListener((aba, mudou) => {
-  if (mudou.status === 'loading') chrome.storage.session.remove(`manifestos:${aba}`)
+  if (mudou.status === 'loading') chrome.storage.session.remove([`manifestos:${aba}`, `embeds:${aba}`])
 })
-chrome.tabs.onRemoved.addListener((aba) => chrome.storage.session.remove(`manifestos:${aba}`))
+chrome.tabs.onRemoved.addListener((aba) => chrome.storage.session.remove([`manifestos:${aba}`, `embeds:${aba}`]))
 
 async function aulaDaAba(aba) {
   const aula = await chrome.tabs.sendMessage(aba, { tipo: 'aulaDoCurso' }).catch(() => null)
   if (!aula) return { erro: 'Recarregue a página da aula e abra o popup de novo.' }
-  const m = escolherManifesto(await manifestosDaAba(aba))
-  if (!m) return { aula, semVideo: true }
+  const video = await videoDaAba(aba, aula)
+  if (!video) return { aula, semVideo: true }
   const { enderecos } = await ajustes()
   try {
-    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/estimar', { metodo: 'POST', corpo: { manifesto: m.url, referer: m.referer, pagina: aula.pagina } })
-    if (status !== 200) return { aula, manifesto: m, erro: dados?.erro || `A Trilha respondeu ${status}` }
-    return { aula, manifesto: m, estimativa: dados }
+    const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/estimar', { metodo: 'POST', corpo: { ...video, pagina: aula.pagina } })
+    if (status !== 200) return { aula, video, erro: dados?.erro || `A Trilha respondeu ${status}` }
+    return { aula, video, estimativa: dados }
   } catch {
-    return { aula, manifesto: m, erro: 'Sem conexão com a Trilha: só funciona na rede de casa.' }
+    return { aula, video, erro: 'Sem conexão com a Trilha: só funciona na rede de casa.' }
   }
 }
 
@@ -186,7 +209,8 @@ async function baixarAula(pedido) {
   try {
     const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
     const abrir = `${base}/#/entrada/cursos`
-    if (status === 202) resultado = { estado: 'enviado', mensagem: 'Na fila de downloads da Trilha', abrir }
+    if (status === 202 && dados?.aula?.estado === 'texto') resultado = { estado: 'enviado', mensagem: 'O texto da aula foi para a Trilha (ela não tem vídeo)', abrir }
+    else if (status === 202) resultado = { estado: 'enviado', mensagem: 'Na fila de downloads da Trilha', abrir }
     else if (status === 200 && dados?.repetida) resultado = { estado: 'repetido', mensagem: dados.aula?.estado === 'pronta' ? 'Esta aula já foi baixada' : 'Esta aula já está na fila', abrir }
     else resultado = { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}`, abrir: '' }
   } catch {
@@ -224,25 +248,87 @@ function abrirNaAba(aba, url) {
 async function baixarDaLista(lote, aula) {
   // Abrir a aula limpa os manifestos da anterior (o "loading" da aba, acima).
   await abrirNaAba(lote.aba, aula.url)
-  let m = null
-  for (let t = 0; t < ESPERA_DO_VIDEO && !m; t++) {
-    await chrome.tabs.sendMessage(lote.aba, { tipo: 'tocarMudo' }).catch(() => 0)
+  let video = null
+  let semPlayer = 0
+  for (let t = 0; t < ESPERA_DO_VIDEO && !video; t++) {
+    const r = await chrome.tabs.sendMessage(lote.aba, { tipo: 'tocarMudo' }).catch(() => null)
     await esperar(2000)
-    m = escolherManifesto(await manifestosDaAba(lote.aba))
+    video = await videoDaAba(lote.aba)
+    // E20: a página sem <video> e sem iframe (aula de texto ou PDF) não vai ganhar um: 3 vezes e segue.
+    if (!video && r && typeof r === 'object' && !r.videos && !r.quadros && ++semPlayer >= 3) break
   }
   await chrome.tabs.sendMessage(lote.aba, { tipo: 'pausar' }).catch(() => 0)
-  if (!m) return { estado: 'sem_video', mensagem: 'O vídeo não apareceu (aula sem vídeo?)' }
   const lida = await chrome.tabs.sendMessage(lote.aba, { tipo: 'aulaDoCurso' }).catch(() => null)
+  if (!video && lida?.embeds?.length) video = { embed: lida.embeds.at(-1).url, referer: lida.embeds.at(-1).referer }
+  const texto = lida?.escola ? lida.texto || '' : ''
+  if (!video && !texto) return { estado: 'sem_video', mensagem: 'O vídeo não apareceu (aula sem vídeo?)' }
   const { enderecos } = await ajustes()
-  const pedido = { plataforma: lote.plataforma, curso: lote.curso, modulo: aula.modulo, titulo: aula.titulo || lida?.titulo || '', pagina: aula.url, manifesto: m.url, referer: m.referer }
+  const pedido = {
+    plataforma: lote.plataforma,
+    curso: aula.curso || lote.curso,
+    modulo: aula.modulo,
+    titulo: aula.titulo || lida?.titulo || '',
+    pagina: aula.url,
+    ...(video || {}),
+    ...(texto ? { texto } : {}),
+    ...(aula.ordem ? { ordem: aula.ordem } : {}),
+    ...(lote.trilha ? { trilha: true } : {}),
+  }
   try {
     const { status, dados } = await chamar(enderecos.trilha, '/api/cursos/aulas', { metodo: 'POST', corpo: pedido })
-    if (status === 202) return { estado: 'enviada', mensagem: 'Na fila da Trilha' }
-    if (status === 200 && dados?.repetida) return { estado: 'enviada', mensagem: dados.aula?.estado === 'pronta' ? 'Já baixada' : 'Já estava na fila' }
+    const naTrilha = dados?.trilha_erro ? ` (a trilha não atualizou: ${dados.trilha_erro})` : ''
+    if (status === 202 && !video) return { estado: 'enviada', soTexto: true, mensagem: 'Só o texto (a aula não tem vídeo)' + naTrilha }
+    if (status === 202) return { estado: 'enviada', mensagem: 'Na fila da Trilha' + naTrilha }
+    if (status === 200 && dados?.repetida) return { estado: 'enviada', soTexto: !video, mensagem: (dados.aula?.estado === 'pronta' ? 'Já baixada' : 'Já estava na Trilha') + naTrilha }
     return { estado: 'erro', mensagem: dados?.erro || `A Trilha respondeu ${status}` }
   } catch {
     return { estado: 'erro', mensagem: 'Sem conexão com a Trilha' }
   }
+}
+
+// E20: mapear a escola inteira. A aba abre a vitrine (as fileiras são os cursos, os cartões levam aos
+// módulos) e depois cada módulo, e lê as aulas de cada um ("N aulas" + a lista). Nada é baixado: no fim,
+// o popup mostra os cursos, os módulos e as aulas para o Lucas conferir e mandar baixar. Um passo por
+// vez, gravado no lote: o serviço que adormece continua de onde parou.
+const VITRINE = '/area/vitrine/home'
+
+async function lerDaAba(aba, tipo, tentativas, pronto) {
+  let r = null
+  for (let i = 0; i < tentativas; i++) {
+    r = await chrome.tabs.sendMessage(aba, { tipo }).catch(() => null)
+    if (pronto(r)) return r
+    await esperar(2000)
+  }
+  return r
+}
+
+async function passoDoMapa(lote) {
+  if (!lote.fila) {
+    await abrirNaAba(lote.aba, lote.origem + VITRINE)
+    await esperar(1500)
+    const fileiras = (await lerDaAba(lote.aba, 'vitrineDaEscola', 6, (r) => r?.length)) || []
+    if (!fileiras.length) return { ...lote, rodando: false, atual: '', aviso: 'Não achei os cursos na vitrine: abra a página inicial da escola, confira se está logado e mapeie de novo.' }
+    const fila = fileiras.flatMap((f) => f.modulos.map((m) => ({ url: m.url, curso: f.curso, nome: m.nome })))
+    return { ...lote, fila, i: 0, cursos: fileiras.map((f) => f.curso), atual: '' }
+  }
+  if (lote.i >= lote.fila.length) return { ...lote, rodando: false, fase: 'mapeado', atual: '', terminou: Date.now() }
+  const item = lote.fila[lote.i]
+  await abrirNaAba(lote.aba, item.url)
+  await esperar(1500)
+  let lido = await lerDaAba(lote.aba, 'modulosDaPagina', 4, (r) => r?.grupos?.length)
+  // Módulo da lista com a sanfona fechada (o "N aulas" sem nenhuma aula à vista): abre e lê de novo.
+  if (await chrome.tabs.sendMessage(lote.aba, { tipo: 'expandirModulos' }).catch(() => 0)) {
+    await esperar(1500)
+    lido = (await lerDaAba(lote.aba, 'modulosDaPagina', 1, () => true)) || lido
+  }
+  const mapa = lote.mapa || {}
+  acrescentarAoMapa(mapa, item.curso, lido?.grupos || [], item.nome)
+  const fila = [...lote.fila]
+  // Um módulo que a página aponta (← →) e não estava na vitrine entra no fim, no mesmo curso.
+  for (const url of lido?.modulos || []) if (!fila.some((f) => f.url === url)) fila.push({ url, curso: item.curso, nome: '' })
+  const problemas = [...(lote.problemas || [])]
+  if (!lido?.grupos?.length) problemas.push(`${item.curso}: não li as aulas de ${item.url}`)
+  return { ...lote, fila, mapa, i: lote.i + 1, problemas, atual: `${item.curso} (${lote.i + 1} de ${fila.length})` }
 }
 
 let loteRodando = false
@@ -253,6 +339,14 @@ async function rodarLote() {
     for (;;) {
       const { lote } = await chrome.storage.local.get('lote')
       if (!lote?.rodando) break
+      if (lote.fase === 'mapear') {
+        const novo = await passoDoMapa(lote)
+        const { lote: agora } = await chrome.storage.local.get('lote')
+        if (!agora || agora.iniciado !== lote.iniciado) break
+        // O Lucas pode ter parado no meio do passo: o passo fica gravado, parado.
+        await chrome.storage.local.set({ lote: { ...novo, rodando: novo.rodando && agora.rodando } })
+        continue
+      }
       const i = lote.aulas.findIndex((a) => !a.estado)
       if (i < 0) {
         await chrome.storage.local.set({ lote: { ...lote, rodando: false, atual: '', terminou: Date.now() } })
@@ -281,14 +375,22 @@ chrome.storage.local.get('lote').then(({ lote }) => lote?.rodando && rodarLote()
 
 async function comandoDoLote(mensagem) {
   const { lote } = await chrome.storage.local.get('lote')
-  if (mensagem.tipo === 'iniciarLote') {
+  if (mensagem.tipo === 'mapearEscola') {
+    const { aba, plataforma, origem } = mensagem
+    await chrome.storage.local.set({ lote: { tipo: 'escola', fase: 'mapear', aba, plataforma, origem, mapa: {}, problemas: [], rodando: true, iniciado: Date.now(), atual: '' } })
+  } else if (lote?.tipo === 'escola' && mensagem.tipo === 'baixarEscola') {
+    const aulas = aulasDoMapa(lote.mapa, mensagem.marcados)
+    await chrome.storage.local.set({ lote: { ...lote, fase: 'baixar', aba: mensagem.aba || lote.aba, aulas, trilha: true, rodando: aulas.length > 0, iniciado: Date.now(), atual: '', aviso: '' } })
+  } else if (mensagem.tipo === 'iniciarLote') {
     const { aba, curso, plataforma, aulas } = mensagem
-    await chrome.storage.local.set({ lote: { aba, curso, plataforma, aulas: aulas.map((a) => ({ url: a.url, titulo: a.titulo, modulo: a.modulo })), rodando: true, iniciado: Date.now(), atual: '' } })
+    await chrome.storage.local.set({ lote: { tipo: 'curso', aba, curso, plataforma, aulas: aulas.map((a) => ({ url: a.url, titulo: a.titulo, modulo: a.modulo })), rodando: true, iniciado: Date.now(), atual: '' } })
   } else if (lote && mensagem.tipo === 'pararLote') {
     await chrome.storage.local.set({ lote: { ...lote, rodando: false, atual: '' } })
+  } else if (lote?.fase === 'mapear' && mensagem.tipo === 'continuarLote') {
+    await chrome.storage.local.set({ lote: { ...lote, aba: mensagem.aba || lote.aba, rodando: true, aviso: '' } })
   } else if (lote && mensagem.tipo === 'continuarLote') {
     // Continuar refaz as que deram erro ou ficaram sem vídeo, na aba de onde o Lucas pediu.
-    const aulas = lote.aulas.map((a) => (a.estado === 'enviada' ? a : { url: a.url, titulo: a.titulo, modulo: a.modulo }))
+    const aulas = lote.aulas.map((a) => (a.estado === 'enviada' ? a : { url: a.url, titulo: a.titulo, modulo: a.modulo, curso: a.curso, ordem: a.ordem }))
     await chrome.storage.local.set({ lote: { ...lote, aba: mensagem.aba || lote.aba, aulas, rodando: true, aviso: '' } })
   } else if (mensagem.tipo === 'esquecerLote') {
     await chrome.storage.local.remove('lote')
@@ -298,8 +400,12 @@ async function comandoDoLote(mensagem) {
 }
 
 chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
-  if (['iniciarLote', 'pararLote', 'continuarLote', 'esquecerLote'].includes(mensagem?.tipo)) {
+  if (['iniciarLote', 'pararLote', 'continuarLote', 'esquecerLote', 'mapearEscola', 'baixarEscola'].includes(mensagem?.tipo)) {
     comandoDoLote(mensagem).then(responder)
+    return true
+  }
+  if (mensagem?.tipo === 'embedVisto' && remetente.tab?.id) {
+    guardarEmbed(remetente.tab.id, mensagem).then(() => responder(true))
     return true
   }
   if (mensagem?.tipo === 'manifestoVisto' && remetente.tab?.id) {

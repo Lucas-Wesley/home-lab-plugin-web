@@ -20,12 +20,16 @@
   const HISTORICO_MAXIMO = 50
 
   // Os cursos de outras plataformas (E14): nas páginas deles, o botão vira "Analisar vídeo", que coleta
-  // como o vídeo chega (só a coleta, nada é baixado). Os donos da Branas.io e da LINUXtips autorizaram o Lucas; na Full Cycle e na Tech Leads Club ele é aluno.
+  // como o vídeo chega (só a coleta, nada é baixado). Os donos da Branas.io e da LINUXtips autorizaram o Lucas; na Full Cycle, na
+  // Tech Leads Club e no Chef Enzo Neto ele é aluno.
   const CURSOS = {
     branas: { nome: 'Branas.io', hosts: ['branas.io'] },
     linuxtips: { nome: 'LINUXtips', hosts: ['linuxtips.io'] },
     fullcycle: { nome: 'Full Cycle', hosts: ['fullcycle.com.br'] },
     techleads: { nome: 'Tech Leads Club', hosts: ['techleads.club'] },
+    // E20: a área de membros (Cademí) do Chef Enzo Neto, com quatro cursos na vitrine: a extensão passa pela
+    // escola inteira (escola: true) e manda cada aula, com o texto da página, para a trilha do curso.
+    enzoneto: { nome: 'Chef Enzo Neto', hosts: ['aluno.enzoneto.com'], escola: true },
   }
 
   // cursoDaPagina: o curso da página (o id em CURSOS) e o endereço base dele, ou null.
@@ -38,7 +42,7 @@
     }
     if (u.protocol !== 'https:') return null
     for (const [id, curso] of Object.entries(CURSOS)) {
-      if (curso.hosts.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`))) return { curso: id, nome: curso.nome, url: u.origin }
+      if (curso.hosts.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`))) return { curso: id, nome: curso.nome, url: u.origin, ...(curso.escola ? { escola: true } : {}) }
     }
     return null
   }

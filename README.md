@@ -13,6 +13,10 @@ põe um botão pequeno no canto de baixo para mandar o link ao app certo:
   organizado na fila, e dali dá para gerar flashcards do conteúdo).
 - **PDF aberto no navegador** (ou um link para `.pdf`, pelo botão direito) → **Biblioteca**: o
   arquivo vai inteiro e vira um livro, pronto para ler.
+- **Aula de curso** (Branas.io, LINUXtips, Full Cycle, Tech Leads Club) → **Trilha**, em vídeo na
+  qualidade máxima, pelo ícone da extensão; na Tech Leads Club, o curso inteiro de uma vez.
+- **Escola do Chef Enzo Neto** (`aluno.enzoneto.com`) → **Trilha**: a extensão mapeia a escola
+  inteira e cada curso vira uma trilha no grupo "Chef Enzo Neto", com o vídeo e o texto de cada aula.
 
 A extensão não guarda nada além do histórico do que foi enviado (os últimos 50) e dos ajustes.
 Não tem servidor próprio: fala direto com a Trilha, o Acervo, o Flashcards e a Biblioteca, na rede de casa.
@@ -50,6 +54,12 @@ As abas abertas antes disso precisam ser recarregadas.
 - **Botão direito** num link (ou na página): **Mandar ao Acervo** ou **Fazer flashcards**, sem abrir
   o link. O ícone da extensão mostra ✓ (ou ! se deu erro) por alguns segundos, e o envio fica no
   histórico. Na primeira vez depois de atualizar, o Chrome pode pedir para aceitar a permissão nova.
+- **Chef Enzo Neto** (E20): logado na escola, abra a página inicial (a vitrine) e clique no ícone da
+  extensão. Em **Escola inteira**: **Mapear a escola** (a aba passa pela vitrine e por cada módulo,
+  sem baixar nada; deixe-a aberta e à vista), confira os cursos e as aulas que ela achou, desmarque o
+  que não quiser e clique em **Baixar as aulas marcadas**. A aba passa por cada aula; a Trilha baixa
+  os vídeos uma por vez e monta uma trilha por curso, no grupo **Chef Enzo Neto**. Dá para parar e
+  continuar depois; uma aula aberta também vai sozinha, pelo bloco **Aula do curso**.
 - O **ícone** da extensão mostra o histórico e os ajustes: o baralho dos flashcards (padrão: o
   **Inglês**), o tipo dos cartões e os endereços dos apps.
 

@@ -53,9 +53,12 @@ function appsFalsos() {
       // Os cursos da Trilha (T50): a estimativa e a fila de downloads.
       if (req.method === 'POST' && req.url === '/api/cursos/estimar') return responder(200, { qualidade: '720p', duracao: 7254, tamanho_estimado: 400 * 2 ** 20, livre: 50 * 2 ** 30, cifrado: false })
       if (req.method === 'POST' && req.url === '/api/cursos/aulas') {
-        const ja = vistos.has('aula:' + dados.manifesto)
-        vistos.add('aula:' + dados.manifesto)
-        return ja ? responder(200, { repetida: true, aula: { id: 9, estado: 'na_fila' } }) : responder(202, { aula: { id: 9, estado: 'na_fila' } })
+        const chave = 'aula:' + (dados.manifesto || dados.embed || dados.pagina)
+        const ja = vistos.has(chave)
+        vistos.add(chave)
+        const estado = dados.manifesto || dados.embed ? 'na_fila' : 'texto'
+        const trilha = dados.trilha ? { trilha_id: 31 } : {}
+        return ja ? responder(200, { repetida: true, aula: { id: 9, estado }, ...trilha }) : responder(202, { aula: { id: 9, estado }, ...trilha })
       }
       if (req.method === 'GET' && req.url === '/api/baralhos') return responder(200, [{ id: 'b2', nome: 'Bandeiras' }, { id: 'b1', nome: 'Inglês' }])
       if (req.method === 'POST' && req.url === '/api/links') return responder(201, { id: 7, origem: 'link', estado: 'na_fila' })
@@ -78,6 +81,80 @@ export const PDF = '%PDF-1.4\n% livro de teste\n%%EOF\n'
 
 const ARTIGO = `<!doctype html><html><head><title>Break the ice - Notícias</title></head><body>
   <h1>Break the ice</h1><p>Um artigo sem frases de exemplo destacadas.</p></body></html>`
+
+// A escola do Chef Enzo Neto: os módulos e as aulas da Cademí falsa.
+const MODULOS_DA_ESCOLA = {
+  100: { produto: 'CDPS - Comece por aqui', nome: 'O CAMINHO DA PRATICIDADE', aulas: [3], proximo: 101 },
+  101: { produto: 'CDPS - Comece por aqui', nome: 'ORGANIZAÇÃO DA FAMÍLIA E DA ROTINA', aulas: [1, 2], anterior: 100, proximo: 102 },
+  102: { produto: 'CDPS - Comece por aqui', nome: 'PRAÇA PRONTA - HABILIDADES BÁSICAS', aulas: [4], anterior: 101 },
+}
+const AULAS_DA_ESCOLA = {
+  1: { titulo: 'Obrigatório em toda casa', video: 'youtube:AAAAAAAAAA1' },
+  2: { titulo: '1 - 2 pessoas em casa', video: 'youtube:AAAAAAAAAA2' },
+  3: { titulo: 'Bases prontas agilizam', video: 'youtube:AAAAAAAAAA3' },
+  4: { titulo: 'Guia da praça pronta - PDF', video: '' },
+  5: { titulo: 'Bases pronta = economia de tempo', video: 'youtube:AAAAAAAAAA5', lista: '1. Bases pronta = economia de tempo' },
+  6: { titulo: 'Tablete de cebola', video: 'youtube:AAAAAAAAAA6', lista: '2. Tablete de cebola' },
+  7: { titulo: 'Molho de tomate base', video: 'hls', lista: '1. Molho de tomate base' },
+}
+
+function listaDoModulo(nome, aulas) {
+  const itens = aulas.map((n) => `<li><a href="/area/conteudo/aula/${n}"><span class="bolinha"></span>${AULAS_DA_ESCOLA[n].lista || AULAS_DA_ESCOLA[n].titulo}</a></li>`).join('')
+  return `<div class="caixa modulo"><div class="cab"><div class="circulo"></div><div><div class="nome">${nome}</div><div class="conta">${aulas.length} aulas</div></div></div><ul>${itens}</ul></div>`
+}
+
+// As praças (produto "Praças - CDPS") mostram os módulos em sanfona; o segundo começa fechado.
+const LATERAL_PRACAS = `<div class="lateral">${listaDoModulo('PRAÇA PRONTA - BASES E TEMPEROS', [5, 6])}
+  <div class="caixa modulo"><button aria-expanded="false" onclick="abrir(this)"><div class="nome">PRAÇA PRONTA - MOLHO TOMATE</div><div class="conta">1 aulas</div></button><ul class="itens"></ul></div></div>
+  <script>function abrir(b) { b.setAttribute('aria-expanded', 'true'); b.nextElementSibling.innerHTML = '<li><a href="/area/conteudo/aula/7">1. Molho de tomate base</a></li>' }</script>`
+
+function lateralDoModulo(id) {
+  const m = MODULOS_DA_ESCOLA[id]
+  if (!m) return { lateral: LATERAL_PRACAS, produto: 'Praças - CDPS' }
+  const vizinho = (n, seta) => (n ? `<a class="caixa" href="/area/conteudo/modulo/${n}"><span>${seta}</span><span>${MODULOS_DA_ESCOLA[n].nome}</span></a>` : '')
+  return {
+    produto: m.produto,
+    lateral: `<div class="lateral"><div class="caixa"><div>Meu progresso - 5.9%</div><div>1 de 17 aula</div></div>${vizinho(m.anterior, '←')}${listaDoModulo(m.nome, m.aulas)}${vizinho(m.proximo, '→')}</div>`,
+  }
+}
+
+const moduloDaAula = (n) => (n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
+
+function paginaDaEscola(caminho) {
+  const topo = '<header><a href="/area/vitrine/home">Pagina inicial</a><a>SUPORTE</a><button aria-expanded="false">Perfil</button></header>'
+  if (caminho === '/area/vitrine/home') {
+    const cartao = (n, alt) => `<a class="cartao" href="/area/conteudo/modulo/${n}"><img alt="${alt}" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a>`
+    return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}
+      <section><div class="fileira-cab"><span class="ponto"></span><span>COZINHA DE PANELA SÓ - COMECE POR AQUI</span></div>
+        <div class="cartoes">${cartao(101, 'Adequando o CDPS à sua família')}${cartao(102, 'Organização do ambiente e habilidades básicas')}</div></section>
+      <section><div class="fileira-cab"><span>AS PRAÇAS DA COZINHA PRÁTICA</span><button>‹</button><button>›</button></div>
+        <div class="carrossel"><div class="trilho">${cartao(201, '')}${cartao(201, '')}</div></div></section>
+      <section><div class="fileira-cab"><span>COMUNIDADE NO WHATSAPP</span></div><div><a href="https://chat.whatsapp.com/x"><img alt="grupo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div></section>
+      </body></html>`
+  }
+  let m = caminho.match(/^\/area\/conteudo\/modulo\/(\d+)$/)
+  if (m) {
+    const { lateral, produto } = lateralDoModulo(Number(m[1]))
+    return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}<main><div class="caminho"><a>Início</a><span>›</span><a>${produto}</a></div><h4>Escolha uma aula</h4></main>${lateral}</body></html>`
+  }
+  m = caminho.match(/^\/area\/conteudo\/aula\/(\d+)$/)
+  if (!m) return ''
+  const n = Number(m[1])
+  const a = AULAS_DA_ESCOLA[n]
+  if (!a) return ''
+  const { lateral, produto } = lateralDoModulo(moduloDaAula(n))
+  const video = a.video.startsWith('youtube:')
+    ? `<iframe id="player" src="https://www.youtube.com/embed/${a.video.slice(8)}?controls=0&rel=0"></iframe>`
+    : a.video === 'hls' ? '<iframe id="player" src="https://player.escola-teste.com/embed/7"></iframe>' : ''
+  const conteudo = a.video
+    ? `<h3>LINK UTENSÍLIOS</h3><h3>MERCADO LIVRE</h3><div class="afiliado"><p><b>Minhas listas de recomendações</b></p><p>Lista de afiliados</p><p>https://www.mercadolivre.com.br/social/enzoneto</p></div>
+       <p>Transcrição</p><p>Vamos começar a aula ${a.titulo} e aqui eu quero deixar a primeira regra para você.</p>
+       <ul><li><b>Preparação prévia</b></li><li>Porcionar as proteínas antes de grelhar.</li></ul>`
+    : '<p>O guia completo da praça pronta, para imprimir.</p><a href="https://cdn.escola-teste.com/guia-praca-pronta.pdf">Baixar o PDF</a>'
+  return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}
+    <main>${video}<div class="caminho"><a href="/area/vitrine/home">Início</a><span>›</span><a>${produto}</a></div>
+      <h4 style="font-size:22px">${a.titulo}</h4>${conteudo}</main>${lateral}</body></html>`
+}
 
 export const test = base.extend({
   apps: [
@@ -185,6 +262,21 @@ export const test = base.extend({
       const u = new URL(route.request().url())
       if (u.pathname === '/embed/9')
         return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>window.tocar = () => fetch("/hls/9/master.m3u8?s=x").then((r) => r.text())</script>' })
+      return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' })
+    })
+    // A escola do Chef Enzo Neto (Cademí, prints de 22/11): a vitrine com fileiras de cartões (imagens) que levam aos
+    // módulos; o módulo paginado (← e → para os vizinhos, "N aulas" e a lista); o módulo em sanfona (o segundo fechado,
+    // as aulas só aparecem no clique); a aula com o vídeo (YouTube embutido, ou HLS num player em iframe, ou nenhum),
+    // o caminho "Início › …", o título, as listas de afiliados e o texto.
+    await context.route('https://aluno.enzoneto.com/**', (route) => {
+      const u = new URL(route.request().url())
+      const body = paginaDaEscola(u.pathname)
+      return body ? route.fulfill({ contentType: 'text/html; charset=utf-8', body }) : route.fulfill({ status: 404, body: 'não' })
+    })
+    await context.route('https://player.escola-teste.com/**', (route) => {
+      const u = new URL(route.request().url())
+      if (u.pathname === '/embed/7')
+        return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>player</title><video></video><script>document.querySelector("video").addEventListener("play", () => fetch("/hls/7/master.m3u8").then((r) => r.text()))</script>' })
       return route.fulfill({ contentType: 'application/vnd.apple.mpegurl', body: '#EXTM3U\n#EXTINF:6.0,\nseg_001.ts\n' })
     })
     // Um site qualquer com um player HLS: o player.js roda lá, mas não conta nada (não é aula de curso).

@@ -8,8 +8,23 @@
   <body>
     <header>
       <h1>Homelab</h1>
-      <p class="suave">Daqui, qualquer página vai ao Acervo ou vira flashcards; num vídeo do YouTube, vai à Trilha (que divide e sugere as trilhas) ou ao Acervo; num PDF, vai à Biblioteca; na aula da Branas.io, LINUXtips, Full Cycle ou Tech Leads Club, baixa o vídeo para a Trilha. Com o botão direito, também um link, sem abrir. O botão no canto da página aparece nos vídeos, nos PDFs e nas páginas com frases de exemplo.</p>
+      <p class="suave">Daqui, qualquer página vai ao Acervo ou vira flashcards; num vídeo do YouTube, vai à Trilha (que divide e sugere as trilhas) ou ao Acervo; num PDF, vai à Biblioteca; na aula da Branas.io, LINUXtips, Full Cycle ou Tech Leads Club, baixa o vídeo para a Trilha; no Chef Enzo Neto, a escola inteira vira trilhas. Com o botão direito, também um link, sem abrir. O botão no canto da página aparece nos vídeos, nos PDFs e nas páginas com frases de exemplo.</p>
     </header>
+
+    <section id="escola" hidden>
+      <h2>Escola inteira · <span id="escola-nome"></span></h2>
+      <p id="escola-info" class="aula-info suave"></p>
+      <ul id="escola-cursos" class="escola-cursos"></ul>
+      <div class="acoes em-linhas">
+        <button id="escola-mapear" type="button" class="principal">Mapear a escola</button>
+        <button id="escola-baixar" type="button" class="principal" hidden>Baixar as aulas marcadas</button>
+        <button id="escola-parar" type="button" hidden>Parar</button>
+        <button id="escola-continuar" type="button" hidden>Continuar</button>
+        <button id="escola-esquecer" type="button" hidden>Limpar</button>
+      </div>
+      <p id="escola-abrir" class="aula-resultado" hidden><a id="escola-link" target="_blank">Abrir as trilhas do Chef Enzo Neto</a></p>
+      <ul id="escola-problemas" class="lote-problemas"></ul>
+    </section>
 
     <section id="aula" hidden>
       <h2>Aula do curso · <span id="aula-plataforma"></span></h2>

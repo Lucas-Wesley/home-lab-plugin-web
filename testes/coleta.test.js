@@ -17,6 +17,9 @@ test('nas páginas dos dois cursos, o botão é o da coleta, com o endereço bas
   assert.equal(D.destinoDaPagina('https://mesa.linuxtips.io/treinamentos/system-design-turma4/abc', false).curso, 'linuxtips')
   assert.equal(D.cursoDaPagina('https://plataforma.fullcycle.com.br/courses/x').curso, 'fullcycle')
   assert.equal(D.cursoDaPagina('https://techleads.club/c/curso').curso, 'techleads')
+  // E20: a área de alunos do Chef Enzo Neto é escola (o site de vendas dele, não).
+  assert.deepEqual(json(D.cursoDaPagina('https://aluno.enzoneto.com/area/vitrine/home')), { curso: 'enzoneto', nome: 'Chef Enzo Neto', url: 'https://aluno.enzoneto.com', escola: true })
+  assert.equal(D.cursoDaPagina('https://enzoneto.com/'), null)
   assert.equal(D.cursoDaPagina('https://branas.io.exemplo.com/'), null)
   assert.equal(D.cursoDaPagina('https://naobranas.io/'), null)
   assert.equal(D.cursoDaPagina('http://mesa.linuxtips.io/'), null)

@@ -153,5 +153,103 @@
     return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`
   }
 
-  globalThis.Aulas = { NAO_E_AULA, PROGRESSO, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
+  // ---------- E20: a escola inteira (Chef Enzo Neto, na Cademí) ----------
+  // A Cademí não tem player próprio: cada escola hospeda o vídeo onde quer (HLS de um player como o
+  // Panda, YouTube não listado, Vimeo). O HLS segue pelo player.js; o YouTube e o Vimeo vão como
+  // "embed" e a Trilha baixa pelo yt-dlp (T55 de lá).
+
+  // ehEmbed: o endereço é o player embutido do YouTube ou do Vimeo.
+  function ehEmbed(endereco) {
+    let u
+    try {
+      u = new URL(endereco)
+    } catch {
+      return false
+    }
+    if (u.protocol !== 'https:') return false
+    const host = u.hostname.replace(/^www\./, '')
+    if (host === 'youtube.com' || host === 'youtube-nocookie.com') return /^\/embed\/[A-Za-z0-9_-]{11}$/.test(u.pathname)
+    if (host === 'player.vimeo.com') return /^\/video\/\d+\/?$/.test(u.pathname)
+    return false
+  }
+
+  // As páginas da área de membros da Cademí: a vitrine, o módulo (o cartão da vitrine leva a ele) e a aula.
+  const LINK_AULA_ESCOLA = /\/area\/conteudo\/aula\/\d+\/?$/
+  const LINK_MODULO_ESCOLA = /\/area\/(conteudo\/modulo|produto)\/\d+\/?$/
+
+  // A sigla fica em maiúsculas (CDPS, PDF): sem vogal ou com até 4 letras e nenhuma minúscula no original.
+  const SIGLAS = /^(cdps|pdf|diy|bbq|tv)$/i
+  // nomeBonito: o nome em CAIXA ALTA da vitrine ("AS PRAÇAS DA COZINHA PRÁTICA") vira "As praças da cozinha
+  // prática"; cada parte depois de " - " começa maiúscula. Nome que já tem minúsculas fica como está.
+  function nomeBonito(texto) {
+    const t = String(texto || '').replace(/\s+/g, ' ').trim()
+    if (!t || t !== t.toUpperCase() || t === t.toLowerCase()) return t
+    return t
+      .split(/(\s+-\s+|\s+–\s+|:\s+)/)
+      .map((parte, i) => {
+        if (i % 2) return parte
+        const palavras = parte.toLowerCase().split(' ')
+        return palavras
+          .map((p, j) => {
+            if (SIGLAS.test(p) || (/^[a-z]{2,5}$/i.test(p) && !/[aeiouáéíóúâêôãõà]/i.test(p))) return p.toUpperCase()
+            return j === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p
+          })
+          .join(' ')
+      })
+      .join('')
+  }
+
+  // semNumero: "1. Bases pronta" → "Bases pronta". Só o "N." da lista: "1 - 2 pessoas em casa" é o
+  // nome da aula (casa de 1 a 2 pessoas), não numeração.
+  const semNumero = (t) => String(t || '').replace(/^\s*\d{1,3}[.)]\s+/, '').trim()
+
+  // acrescentarAoMapa: junta ao mapa da escola os módulos lidos numa página (grupos de aulas com o
+  // nome do módulo e o "N aulas" esperado), no curso do cartão que levou até ela. A aula já vista
+  // (por endereço) não entra de novo; o módulo de mesmo nome no mesmo curso é o mesmo.
+  function acrescentarAoMapa(mapa, curso, grupos, moduloPadrao = '') {
+    mapa.cursos ||= []
+    mapa.vistas ||= {}
+    let c = mapa.cursos.find((x) => x.nome === curso)
+    if (!c) mapa.cursos.push((c = { nome: curso, modulos: [] }))
+    let novas = 0
+    for (const g of grupos || []) {
+      const nome = nomeBonito(g.modulo) || nomeBonito(moduloPadrao) || curso
+      const aulas = (g.aulas || []).filter((a) => a.url && !mapa.vistas[a.url])
+      if (!aulas.length && c.modulos.some((m) => m.nome === nome)) continue
+      let m = c.modulos.find((x) => x.nome === nome)
+      if (!m) c.modulos.push((m = { nome, esperado: 0, aulas: [] }))
+      if (g.esperado) m.esperado = Math.max(m.esperado, g.esperado)
+      for (const a of aulas) {
+        mapa.vistas[a.url] = true
+        m.aulas.push({ url: a.url, titulo: semNumero(a.titulo) || a.titulo })
+        novas++
+      }
+    }
+    return novas
+  }
+
+  // resumoDoMapa: por curso, os módulos, as aulas e os módulos com menos aulas do que a página diz.
+  function resumoDoMapa(mapa) {
+    return (mapa?.cursos || [])
+      .map((c) => ({
+        nome: c.nome,
+        modulos: c.modulos.filter((m) => m.aulas.length).length,
+        aulas: c.modulos.reduce((n, m) => n + m.aulas.length, 0),
+        faltando: c.modulos.filter((m) => m.esperado > m.aulas.length).map((m) => `${m.nome} (${m.aulas.length} de ${m.esperado})`),
+      }))
+      .filter((c) => c.aulas > 0)
+  }
+
+  // aulasDoMapa: a fila de downloads dos cursos marcados, na ordem da escola; a ordem conta por curso.
+  function aulasDoMapa(mapa, marcados) {
+    const lista = []
+    for (const c of mapa?.cursos || []) {
+      if (marcados && !marcados.includes(c.nome)) continue
+      let ordem = 0
+      for (const m of c.modulos) for (const a of m.aulas) lista.push({ url: a.url, titulo: a.titulo, modulo: m.nome, curso: c.nome, ordem: ++ordem })
+    }
+    return lista
+  }
+
+  globalThis.Aulas = { ehEmbed, LINK_AULA_ESCOLA, LINK_MODULO_ESCOLA, nomeBonito, semNumero, acrescentarAoMapa, resumoDoMapa, aulasDoMapa, NAO_E_AULA, PROGRESSO, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, ehManifesto, ehVariante, escolherManifesto, chaveDoCurso, cursoPadrao, tituloLimpo, GENERICOS, PARECE_MODULO, tamanhoLegivel, duracaoLegivel }
 })()

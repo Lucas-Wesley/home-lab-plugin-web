@@ -249,7 +249,7 @@
   //   … › curso" (Full Cycle); o texto igual ao curso da URL /c/<curso> (Tech Leads Club); na LINUXtips,
   //   o nome do treinamento na URL. O nome que o Lucas escrever para o curso fica lembrado. O popup
   //   deixa corrigir tudo.
-  const { GENERICOS, PARECE_MODULO, PROGRESSO, NAO_E_AULA, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina } = { ...globalThis.Aulas, ...globalThis.Destinos }
+  const { GENERICOS, PARECE_MODULO, PROGRESSO, NAO_E_AULA, CONTAGEM, cursoDoEndereco, cursoDoCaminho, escolherTitulo, tituloLimpo, chaveDoCurso, cursoPadrao, cursoDaPagina, ehEmbed, LINK_AULA_ESCOLA, LINK_MODULO_ESCOLA, nomeBonito, semNumero } = { ...globalThis.Aulas, ...globalThis.Destinos }
   const textoDe = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim()
   // Só o texto do próprio elemento, sem o dos filhos ("MODULO 1 - …" sem o "1h 13min 1/10" ao lado).
   const textoProprio = (el) =>
@@ -387,6 +387,24 @@
     if (!curso) return null
     const textos = textosVisiveis()
     const titulo = tituloDaAula(textos)
+    // E20: na escola (Cademí), a aula leva também o texto da página e o player embutido (YouTube/Vimeo).
+    if (curso.escola) {
+      const grupo = gruposDeAulas().find((g) => g.aulas.some((a) => a.url === location.origin + location.pathname.replace(/\/+$/, '')))
+      return {
+        plataforma: curso.curso,
+        nomePlataforma: curso.nome,
+        escola: true,
+        ehAula: LINK_AULA_ESCOLA.test(location.pathname),
+        titulo,
+        modulo: nomeBonito(grupo?.modulo || moduloDaAula(titulo, textos)),
+        curso: '',
+        pagina: location.origin + location.pathname,
+        chaveCurso: chaveDoCurso(location.href),
+        cursoPadrao: nomeBonito(caminhoDaEscola()),
+        texto: textoDaAula(titulo),
+        embeds: embedsDaPagina(),
+      }
+    }
     return {
       plataforma: curso.curso,
       nomePlataforma: curso.nome,
@@ -397,6 +415,185 @@
       chaveCurso: chaveDoCurso(location.href),
       cursoPadrao: cursoPadrao(location.href),
     }
+  }
+
+
+  // ---------- E20: a escola inteira (Chef Enzo Neto, área de membros da Cademí) ----------
+  // Prints de 22/11: a vitrine tem fileiras com um nome ("AS PRAÇAS DA COZINHA PRÁTICA") e cartões (imagens)
+  // que levam ao módulo (/area/conteudo/modulo/<n>); a aula (/area/conteudo/aula/<n>) tem o vídeo, o
+  // caminho "Início › Praças - CDPS", o título, o texto (transcrição, notas) e, ao lado, o módulo com
+  // "N aulas" e a lista numerada ("1. Bases pronta = economia de tempo"). Os nomes vêm do que se lê;
+  // nada aqui depende de classe CSS.
+  const enderecoDe = (a) => {
+    try {
+      const u = new URL(a.getAttribute('href'), location.href)
+      return u.origin === location.origin ? u.origin + u.pathname.replace(/\/+$/, '') : ''
+    } catch {
+      return ''
+    }
+  }
+
+  // O nome da fileira da vitrine: o texto curto logo antes do bloco dos cartões (subindo até achar),
+  // sem as setas do carrossel.
+  function nomeDaFileira(cartao) {
+    for (let atual = cartao, n = 0; atual && atual !== document.body && n < 10; atual = atual.parentElement, n++) {
+      for (let irmao = atual.previousElementSibling, k = 0; irmao && k < 3; irmao = irmao.previousElementSibling, k++) {
+        if (irmao.querySelector('a[href*="/area/conteudo/"], img')) break // outra fileira de cartões
+        const t = textoDe(irmao).replace(/[‹›<>«»←→]/g, '').trim()
+        if (t.length > 2 && t.length < 100 && /\p{L}{3}/u.test(t)) return t
+      }
+    }
+    return ''
+  }
+
+  // O nome do cartão (a imagem tem o texto): alt, title ou aria-label; sem eles, o texto do link.
+  const nomeDoCartao = (a) =>
+    (a.getAttribute('aria-label') || a.getAttribute('title') || a.querySelector('img[alt]')?.getAttribute('alt') || textoDe(a) || '').trim()
+
+  // vitrineDaEscola: as fileiras da vitrine com os cartões de módulo, na ordem da página (os clones do
+  // carrossel não repetem). Fileira sem cartão de módulo (a do WhatsApp) não entra.
+  function vitrineDaEscola() {
+    const fileiras = []
+    const vistos = new Set()
+    for (const a of document.querySelectorAll('a[href]')) {
+      const url = enderecoDe(a)
+      if (!url || vistos.has(url) || !LINK_MODULO_ESCOLA.test(new URL(url).pathname)) continue
+      vistos.add(url)
+      const nome = nomeDaFileira(a) || 'Escola'
+      let f = fileiras.find((x) => x.nome === nome)
+      if (!f) fileiras.push((f = { nome, modulos: [] }))
+      f.modulos.push({ url, nome: nomeDoCartao(a) })
+    }
+    return fileiras.map((f) => ({ ...f, curso: nomeBonito(f.nome) }))
+  }
+
+  // O nome de um link de aula da lista (o texto do link, sem "concluída", duração…).
+  const tituloDoLink = (a) =>
+    [a, ...a.querySelectorAll('*')].map(textoProprio).find((t) => t.length > 1 && !NAO_E_AULA.test(t) && !GENERICOS.test(t)) || textoDe(a)
+
+  // O bloco do módulo de um link de aula: o ancestral mais próximo que tem o "N aulas" (fora de link).
+  function moduloDoLink(link) {
+    for (let atual = link.parentElement, n = 0; atual && atual !== document.body && n < 10; atual = atual.parentElement, n++) {
+      const contagem = [...atual.querySelectorAll('*')].find((el) => CONTAGEM.test(textoProprio(el)) && !el.closest('a[href]'))
+      if (!contagem) continue
+      let nome = ''
+      for (let el = contagem, k = 0; el && el !== atual && k < 4 && !nome; el = el.parentElement, k++) {
+        for (let irmao = el.previousElementSibling; irmao; irmao = irmao.previousElementSibling) {
+          const t = textoDe(irmao)
+          if (t && t.length < 150 && !CONTAGEM.test(t) && !NAO_E_AULA.test(t) && /\p{L}{3}/u.test(t)) {
+            nome = t
+            break
+          }
+        }
+      }
+      return { bloco: atual, modulo: nome || nomeEm(atual), esperado: parseInt(textoProprio(contagem), 10) || 0 }
+    }
+    return { bloco: null, modulo: '', esperado: 0 }
+  }
+
+  // gruposDeAulas: os links de aula da página (visíveis ou na sanfona fechada), agrupados pelo módulo.
+  function gruposDeAulas() {
+    const grupos = []
+    const vistos = new Set()
+    for (const a of document.querySelectorAll('a[href]')) {
+      const url = enderecoDe(a)
+      if (!url || vistos.has(url) || !LINK_AULA_ESCOLA.test(new URL(url).pathname)) continue
+      const titulo = semNumero(tituloDoLink(a))
+      if (!titulo || titulo.length > 200) continue
+      vistos.add(url)
+      const { bloco, modulo, esperado } = moduloDoLink(a)
+      let g = grupos.find((x) => x.bloco === bloco && x.modulo === modulo)
+      if (!g) grupos.push((g = { bloco, modulo, esperado, aulas: [] }))
+      g.aulas.push({ url, titulo })
+    }
+    return grupos.map(({ modulo, esperado, aulas }) => ({ modulo, esperado, aulas }))
+  }
+
+  // modulosDaPagina: os módulos (com as aulas) e os outros módulos para onde a página leva (← e →).
+  function modulosDaPagina() {
+    const outros = []
+    for (const a of document.querySelectorAll('a[href]')) {
+      const url = enderecoDe(a)
+      if (url && LINK_MODULO_ESCOLA.test(new URL(url).pathname) && !outros.includes(url)) outros.push(url)
+    }
+    return { grupos: gruposDeAulas(), modulos: outros, titulo: document.title }
+  }
+
+  // Abre as sanfonas fechadas da lista: o módulo com "N aulas" cujo bloco não mostra nenhuma aula. O
+  // clique é no cabeçalho dele (botão ou o que abre a sanfona), nunca num link (levaria a aba para
+  // outra página no meio da leitura).
+  function expandirModulos() {
+    let n = 0
+    for (const contagem of document.querySelectorAll('body *')) {
+      if (!CONTAGEM.test(textoProprio(contagem)) || contagem.closest('a[href]')) continue
+      // O bloco do módulo: sobe enquanto o pai só tem esta contagem.
+      let bloco = contagem
+      while (bloco.parentElement && bloco.parentElement !== document.body && [...bloco.parentElement.querySelectorAll('*')].filter((el) => CONTAGEM.test(textoProprio(el))).length === 1) bloco = bloco.parentElement
+      if (bloco.querySelector('a[href*="/area/conteudo/aula/"]')) continue
+      const alvo = contagem.closest('button, [role="button"], [aria-expanded], summary') || contagem.parentElement
+      if (!alvo || alvo.closest('a[href]') || alvo.getAttribute('aria-expanded') === 'true') continue
+      alvo.click()
+      n++
+    }
+    return n
+  }
+
+  // O curso pelo caminho "Início › Praças - CDPS" (o nome do produto na Cademí).
+  function caminhoDaEscola() {
+    const inicio = [...document.querySelectorAll('a, span, li, div')].find((el) => /^in[ií]cio$/i.test(textoProprio(el)) && visivel(el))
+    for (let a = inicio?.parentElement, n = 0; a && n < 4; a = a.parentElement, n++) {
+      const itens = [...a.querySelectorAll('*')].map(textoProprio).filter((t) => t && !/^in[ií]cio$/i.test(t) && !/^[›>/»|]$/.test(t))
+      if (itens.length) return itens[itens.length - 1]
+    }
+    return ''
+  }
+
+  // Os players embutidos do YouTube e do Vimeo na página (o do iframe dentro de iframe, o player.js conta).
+  const embedsDaPagina = () =>
+    [...document.querySelectorAll('iframe[src]')].map((f) => f.src).filter(ehEmbed).map((url) => ({ url, referer: `${location.origin}/` }))
+
+  // Textos que se repetem em toda aula e não são dela: as listas de afiliados.
+  const PROPAGANDA = /(mercadolivre\.com|amazon\.com|a\.co\/|lista de afiliados|listas de recomenda|p[áa]gina da amazon|produtos recomendados|^link utens[ií]lios|^mercado livre$|^amazon$)/i
+  const BLOCOS = 'h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, td'
+
+  // textoDaAula: o texto da página da aula em Markdown simples (títulos, parágrafos, listas), do título
+  // para baixo, fora da lista de aulas e das propagandas; e os anexos (PDF, download) como links.
+  function textoDaAula(titulo) {
+    const alvo = String(titulo || '').toLowerCase()
+    const eTitulo = [...document.querySelectorAll('h1, h2, h3, h4, div, span, p')].find(
+      (el) => textoDe(el).toLowerCase() === alvo && !el.closest('a[href]') && visivel(el) && !el.querySelector('a[href]'),
+    )
+    // A coluna das aulas: o menor bloco com todos os links de aula e de módulo, se o título não está nele.
+    const LINKS = 'a[href*="/area/conteudo/aula/"], a[href*="/area/conteudo/modulo/"]'
+    const links = [...document.querySelectorAll(LINKS)]
+    let lateral = links[0]?.parentElement
+    while (lateral && !links.every((l) => lateral.contains(l))) lateral = lateral.parentElement
+    if (!lateral || lateral === document.body || (eTitulo && lateral.contains(eTitulo))) lateral = null
+    const naLista = (el) => (lateral && lateral.contains(el)) || !!el.closest(LINKS) || !!el.closest('ul, ol, nav, aside')?.querySelector(LINKS)
+    const depois = (el) => !eTitulo || !!(eTitulo.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const linhas = []
+    for (const el of document.querySelectorAll(BLOCOS)) {
+      if (el.closest('header, footer, script, style, noscript, homelab-envio') || el === eTitulo || !depois(el) || naLista(el)) continue
+      // O bloco que tem outro bloco dentro (um <li> com <p>) vai pelos de dentro.
+      if (el.querySelector(BLOCOS)) continue
+      const t = textoDe(el)
+      if (!t || CONTAGEM.test(t) || PROPAGANDA.test(t) || PROPAGANDA.test(el.querySelector('a[href]')?.href || '')) continue
+      if (/^H[1-6]$/.test(el.tagName)) linhas.push('', `## ${t}`, '')
+      else if (el.tagName === 'LI') linhas.push(`- ${t}`)
+      else linhas.push(t, '')
+    }
+    const anexos = []
+    for (const a of document.querySelectorAll('a[href]')) {
+      const nome = textoDe(a) || a.getAttribute('download') || ''
+      if (!/\.pdf(\?|#|$)/i.test(a.href) && !a.hasAttribute('download') && !/^(baixar|download)\b/i.test(nome)) continue
+      if (!anexos.some((x) => x.url === a.href)) anexos.push({ nome: nome || 'Anexo', url: a.href })
+    }
+    for (const f of document.querySelectorAll('iframe[src], embed[src], object[data]')) {
+      const url = f.src || f.data
+      if (/\.pdf(\?|#|$)/i.test(url) && !anexos.some((x) => x.url === url)) anexos.push({ nome: 'PDF da aula', url })
+    }
+    if (anexos.length) linhas.push('', '## Anexos', '', ...anexos.map((x) => `- [${x.nome}](${x.url})`))
+    return linhas.join('\n').replace(/\n{3,}/g, '\n\n').trim()
   }
 
   // E19: a lista de aulas da barra lateral (Tech Leads Club, uma comunidade Circle): o link de cada
@@ -454,6 +651,19 @@
       }
       return false
     }
+    // E20: a escola inteira (o serviço passa a aba pela vitrine e por cada módulo).
+    if (mensagem?.tipo === 'vitrineDaEscola') {
+      responder(cursoDaPagina(location.href)?.escola ? vitrineDaEscola() : [])
+      return false
+    }
+    if (mensagem?.tipo === 'modulosDaPagina') {
+      responder(cursoDaPagina(location.href)?.escola ? modulosDaPagina() : null)
+      return false
+    }
+    if (mensagem?.tipo === 'expandirModulos') {
+      responder(expandirModulos())
+      return false
+    }
     if (mensagem?.tipo === 'aulasDaLista') {
       responder(cursoDaPagina(location.href) ? aulasDaLista() : [])
       return false
@@ -469,7 +679,8 @@
           v.play().catch(() => {})
         }
       }
-      responder(videos.length)
+      // E20: a página sem <video> e sem iframe é aula sem vídeo (texto, PDF): o serviço não espera à toa.
+      responder({ videos: videos.length, quadros: document.querySelectorAll('iframe').length })
       return false
     }
     if (mensagem?.tipo === 'aulaDoCurso') {

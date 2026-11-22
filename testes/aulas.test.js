@@ -61,3 +61,50 @@ test('o nome da aula é o texto repetido ou marcado como atual (E15)', () => {
   assert.equal(A.escolherTitulo([t('Vídeo', 14, true), t('Vídeo'), t('Protocolos de Rede: DNS'), t('Protocolos de Rede: DNS')]), 'Protocolos de Rede: DNS')
   assert.ok(A.PROGRESSO.test('0% CONCLUÍDO'))
 })
+
+test('E20: o player embutido do YouTube e do Vimeo', () => {
+  assert.ok(A.ehEmbed('https://www.youtube.com/embed/AAAAAAAAAAA?controls=0&rel=0'))
+  assert.ok(A.ehEmbed('https://www.youtube-nocookie.com/embed/AAAAAAAAAAA'))
+  assert.ok(A.ehEmbed('https://player.vimeo.com/video/123456?h=abc&badge=0'))
+  assert.ok(!A.ehEmbed('https://www.youtube.com/watch?v=AAAAAAAAAAA'))
+  assert.ok(!A.ehEmbed('https://player-vz-x.tv.pandavideo.com.br/embed/?v=1'))
+  assert.ok(!A.ehEmbed('http://player.vimeo.com/video/1'))
+})
+
+test('E20: os nomes da vitrine em caixa alta e o número da aula', () => {
+  assert.equal(A.nomeBonito('AS PRAÇAS DA COZINHA PRÁTICA'), 'As praças da cozinha prática')
+  assert.equal(A.nomeBonito('COZINHA DE PANELA SÓ - COMECE POR AQUI'), 'Cozinha de panela só - Comece por aqui')
+  assert.equal(A.nomeBonito('PRAÇA PRONTA - GRÃOS, MASSAS E CEREAIS'), 'Praça pronta - Grãos, massas e cereais')
+  assert.equal(A.nomeBonito('CDPS - COMECE POR AQUI'), 'CDPS - Comece por aqui')
+  assert.equal(A.nomeBonito('CONGELAMENTO INTELIGENTE 2026'), 'Congelamento inteligente 2026')
+  assert.equal(A.nomeBonito('Guia da praça pronta - PDF'), 'Guia da praça pronta - PDF')
+  assert.equal(A.semNumero('1. Bases pronta = economia de tempo'), 'Bases pronta = economia de tempo')
+  assert.equal(A.semNumero('12) Tablete de cebola'), 'Tablete de cebola')
+  assert.equal(A.semNumero('1 - 2 pessoas em casa'), '1 - 2 pessoas em casa')
+  assert.equal(A.semNumero('5 pessoas ou mais em casa'), '5 pessoas ou mais em casa')
+  assert.equal(A.semNumero('Obrigatório em toda casa'), 'Obrigatório em toda casa')
+  assert.ok(A.LINK_AULA_ESCOLA.test('/area/conteudo/aula/7643834'))
+  assert.ok(A.LINK_MODULO_ESCOLA.test('/area/conteudo/modulo/1475290'))
+})
+
+test('E20: o mapa da escola junta os módulos de cada curso, sem repetir aula', () => {
+  const mapa = {}
+  const g1 = [{ modulo: 'PRAÇA PRONTA - BASES E TEMPEROS', esperado: 3, aulas: [{ url: 'u1', titulo: '1. Bases' }, { url: 'u2', titulo: '2. Tablete' }] }]
+  assert.equal(A.acrescentarAoMapa(mapa, 'As praças', g1), 2)
+  // A mesma página de novo (outro cartão leva ao mesmo módulo): nada novo.
+  assert.equal(A.acrescentarAoMapa(mapa, 'As praças', g1), 0)
+  A.acrescentarAoMapa(mapa, 'As praças', [{ modulo: 'Praça pronta - Proteínas', aulas: [{ url: 'u3', titulo: 'Carne' }] }])
+  A.acrescentarAoMapa(mapa, 'Métodos', [{ modulo: '', aulas: [{ url: 'u4', titulo: 'Grelhado' }] }], 'PREPAROS GRELHADOS')
+  const r = A.resumoDoMapa(mapa)
+  assert.deepEqual(JSON.parse(JSON.stringify(r)), [
+    { nome: 'As praças', modulos: 2, aulas: 3, faltando: ['Praça pronta - Bases e temperos (2 de 3)'] },
+    { nome: 'Métodos', modulos: 1, aulas: 1, faltando: [] },
+  ])
+  const fila = A.aulasDoMapa(mapa, ['As praças'])
+  assert.deepEqual(JSON.parse(JSON.stringify(fila.map((a) => [a.titulo, a.modulo, a.ordem]))), [
+    ['Bases', 'Praça pronta - Bases e temperos', 1],
+    ['Tablete', 'Praça pronta - Bases e temperos', 2],
+    ['Carne', 'Praça pronta - Proteínas', 3],
+  ])
+  assert.equal(A.aulasDoMapa(mapa)[3].modulo, 'Preparos grelhados')
+})
