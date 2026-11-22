@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Homelab",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Manda vídeos do YouTube à Trilha, artigos e qualquer página ao Acervo ou ao Flashcards, e PDFs à Biblioteca; nos cursos da Branas.io, LINUXtips, Full Cycle e Tech Leads Club, baixa a aula para a Trilha; no Chef Enzo Neto, mapeia a escola inteira e cada curso vira uma trilha.",
   "icons": {
     "16": "icones/16.png",

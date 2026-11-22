@@ -358,7 +358,10 @@ async function passoDoMapa(lote) {
     const fileiras = (await lerDaAba(lote.aba, 'vitrineDaEscola', 6, (r) => r?.length)) || []
     if (!fileiras.length) return { ...lote, rodando: false, atual: '', aviso: 'Não achei os cursos na vitrine: abra a página inicial da escola, confira se está logado e mapeie de novo.' }
     const fila = fileiras.flatMap((f) => f.modulos.map((m) => ({ url: m.url, curso: f.curso, nome: m.nome })))
-    return { ...lote, fila, i: 0, cursos: fileiras.map((f) => f.curso), atual: '' }
+    // E24: os cursos mapeados de dentro de uma aula (o cartão deles na vitrine não leva a um módulo) entram também.
+    const { cursosAvulsos } = await chrome.storage.local.get('cursosAvulsos')
+    for (const c of cursosAvulsos?.[lote.plataforma] || []) if (!fila.some((f) => f.curso === c.curso)) fila.push({ url: c.url, curso: c.curso, nome: '' })
+    return { ...lote, fila, i: 0, cursos: [...new Set(fila.map((f) => f.curso))], atual: '' }
   }
   if (lote.i >= lote.fila.length) return { ...lote, rodando: false, fase: 'mapeado', atual: '', terminou: Date.now() }
   const item = lote.fila[lote.i]
@@ -427,6 +430,20 @@ async function comandoDoLote(mensagem) {
   if (mensagem.tipo === 'mapearEscola') {
     const { aba, plataforma, origem } = mensagem
     await chrome.storage.local.set({ lote: { tipo: 'escola', fase: 'mapear', aba, plataforma, origem, mapa: {}, problemas: [], rodando: true, iniciado: Date.now(), atual: '' } })
+  } else if (mensagem.tipo === 'mapearCursoEscola') {
+    // E24: um curso mapeado de dentro de uma aula dele (a lista do lado). Fica lembrado para o próximo
+    // "Mapear a escola" e entra no mapa que já existe; sem mapa (ou com outro lote parado), começa um só com ele.
+    const { aba, plataforma, origem, url, curso } = mensagem
+    const { cursosAvulsos = {} } = await chrome.storage.local.get('cursosAvulsos')
+    cursosAvulsos[plataforma] = [...(cursosAvulsos[plataforma] || []).filter((c) => c.curso !== curso), { url, curso }]
+    await chrome.storage.local.set({ cursosAvulsos })
+    const item = { url, curso, nome: '' }
+    if (lote?.tipo === 'escola' && lote.plataforma === plataforma && ['mapear', 'mapeado'].includes(lote.fase) && lote.fila) {
+      const fila = lote.fila.some((f) => f.curso === curso) ? lote.fila : [...lote.fila, item]
+      await chrome.storage.local.set({ lote: { ...lote, fila, cursos: [...new Set(fila.map((f) => f.curso))], fase: 'mapear', aba, rodando: true, aviso: '' } })
+    } else if (!(lote?.rodando && !(lote.tipo === 'escola' && lote.fase === 'mapear' && !lote.fila))) {
+      await chrome.storage.local.set({ lote: { tipo: 'escola', fase: 'mapear', aba, plataforma, origem, mapa: {}, problemas: [], fila: [item], i: 0, cursos: [curso], rodando: true, iniciado: Date.now(), atual: '' } })
+    }
   } else if (lote?.tipo === 'escola' && mensagem.tipo === 'baixarEscola') {
     const aulas = aulasDoMapa(lote.mapa, mensagem.marcados)
     await chrome.storage.local.set({ lote: { ...lote, fase: 'baixar', aba: mensagem.aba || lote.aba, aulas, trilha: true, rodando: aulas.length > 0, iniciado: Date.now(), atual: '', aviso: '' } })
@@ -450,7 +467,7 @@ async function comandoDoLote(mensagem) {
 }
 
 chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
-  if (['iniciarLote', 'pararLote', 'continuarLote', 'esquecerLote', 'mapearEscola', 'baixarEscola'].includes(mensagem?.tipo)) {
+  if (['iniciarLote', 'pararLote', 'continuarLote', 'esquecerLote', 'mapearEscola', 'mapearCursoEscola', 'baixarEscola'].includes(mensagem?.tipo)) {
     comandoDoLote(mensagem).then(responder)
     return true
   }

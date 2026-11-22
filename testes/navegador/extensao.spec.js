@@ -423,6 +423,31 @@ test('no Chef Enzo Neto, o popup mapeia a escola pela vitrine e manda cada aula,
   expect(pedidos.some((p) => 'anexos' in p)).toBe(false) // a lista não vai no corpo da aula
 })
 
+test('no Chef Enzo Neto, o curso que a vitrine não mostra se mapeia de dentro de uma aula e fica lembrado (E24)', async ({ page, context, apps, extensao }) => {
+  test.setTimeout(120000)
+  await page.goto('https://aluno.enzoneto.com/area/conteudo/aula/9')
+  await expect(botao(page)).toBeVisible()
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await popup.getByRole('button', { name: 'Mapear este curso (Comida com assinatura)' }).click()
+  await expect(popup.locator('#escola-info')).toContainText('Achei 1 curso e 2 aulas', { timeout: 60000 })
+  await expect(popup.locator('#escola-cursos li')).toHaveText(['Comida com assinatura · 1 módulo · 2 aulas'])
+  const { cursosAvulsos } = await context.servico.evaluate(() => chrome.storage.local.get('cursosAvulsos'))
+  expect(cursosAvulsos.enzoneto).toEqual([{ url: 'https://aluno.enzoneto.com/area/conteudo/aula/9', curso: 'Comida com assinatura' }])
+  await popup.getByRole('button', { name: 'Baixar as aulas marcadas' }).click()
+  await expect(popup.locator('#escola-info')).toContainText('2 de 2 · 2 vídeos na Trilha', { timeout: 60000 })
+  const pedidos = apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas').map((r) => r.corpo)
+  expect(pedidos.map((p) => [p.curso, p.ordem, p.titulo, p.trilha])).toEqual([
+    ['Comida com assinatura', 1, 'Boas vindas', true],
+    ['Comida com assinatura', 2, 'O tripé - base, personalidade e frescor', true],
+  ])
+  // Terminado o download, dá para mapear de novo sem limpar; o mapa da escola inteira passa a incluir o curso.
+  await popup.getByRole('button', { name: 'Mapear de novo' }).click()
+  await expect(popup.locator('#escola-info')).toContainText('Achei 4 cursos e 10 aulas', { timeout: 90000 })
+  await expect(popup.locator('#escola-cursos li').last()).toHaveText('Comida com assinatura · 1 módulo · 2 aulas')
+})
+
 test('no Chef Enzo Neto, a aula aberta vai com o vídeo embutido, o texto e a trilha do curso (E20)', async ({ page, context, apps, extensao }) => {
   await page.goto('https://aluno.enzoneto.com/area/conteudo/aula/1')
   await expect(botao(page)).toBeVisible()

@@ -60,6 +60,8 @@ As abas abertas antes disso precisam ser recarregadas.
   que não quiser e clique em **Baixar as aulas marcadas**. A aba passa por cada aula; a Trilha baixa
   os vídeos uma por vez e monta uma trilha por curso, no grupo **Chef Enzo Neto**. Dá para parar e
   continuar depois; uma aula aberta também vai sozinha, pelo bloco **Aula do curso**.
+  Curso que o mapa não achou (o cartão dele na vitrine não leva a um módulo, E24): abra uma aula dele e
+  clique em **Mapear este curso**; ele entra no mapa e fica lembrado para os próximos.
 - O **ícone** da extensão mostra o histórico e os ajustes: o baralho dos flashcards (padrão: o
   **Inglês**), o tipo dos cartões e os endereços dos apps.
 

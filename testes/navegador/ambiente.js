@@ -101,6 +101,9 @@ const AULAS_DA_ESCOLA = {
   6: { titulo: 'Tablete de cebola', video: 'youtube:AAAAAAAAAA6', lista: '2. Tablete de cebola' },
   7: { titulo: 'Molho de tomate base', video: 'hls', lista: '1. Molho de tomate base' },
   8: { titulo: 'Como usar o Enzap', video: 'youtube:AAAAAAAAAA8' },
+  // E24: o curso da fileira "Black Friday" (um módulo só; o cartão da vitrine não leva a um módulo).
+  9: { titulo: 'Boas vindas', video: 'youtube:AAAAAAAAAA9', lista: '1. Boas vindas' },
+  10: { titulo: 'O tripé - base, personalidade e frescor', video: 'youtube:AAAAAAAAA10', lista: '2. O tripé - base, personalidade e frescor' },
 }
 
 function listaDoModulo(nome, aulas) {
@@ -116,6 +119,7 @@ const LATERAL_PRACAS = `<div class="lateral">${listaDoModulo('PRAÇA PRONTA - BA
 function lateralDoModulo(id) {
   const m = MODULOS_DA_ESCOLA[id]
   if (id === 300) return { lateral: `<div class="lateral">${listaDoModulo('INSTRUÇÕES', [8])}</div>`, produto: 'Enzap' }
+  if (id === 400) return { lateral: `<div class="lateral">${listaDoModulo('Comida com assinatura', [9, 10])}</div>`, produto: 'Comida com assinatura' }
   if (!m) return { lateral: LATERAL_PRACAS, produto: 'Praças - CDPS' }
   const vizinho = (n, seta) => (n ? `<a class="caixa" href="/area/conteudo/aula/${MODULOS_DA_ESCOLA[n].aulas[0]}"><span>${seta}</span><span>${MODULOS_DA_ESCOLA[n].nome}</span></a>` : '')
   return {
@@ -124,7 +128,7 @@ function lateralDoModulo(id) {
   }
 }
 
-const moduloDaAula = (n) => (n === 8 ? 300 : n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
+const moduloDaAula = (n) => (n >= 9 ? 400 : n === 8 ? 300 : n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
 
 function paginaDaEscola(caminho) {
   const topo = '<header><a href="/area/vitrine/home">Pagina inicial</a><a>SUPORTE</a><button aria-expanded="false">Perfil</button></header>'
@@ -136,6 +140,8 @@ function paginaDaEscola(caminho) {
       <section><div class="cartoes">${cartao(300, 'Instruções')}</div></section>
       <section><div class="fileira-cab"><span>AS PRAÇAS DA COZINHA PRÁTICA</span><button>‹</button><button>›</button></div>
         <div class="carrossel"><div class="trilho">${cartao(201, '')}${cartao(201, '')}</div></div></section>
+      <section><div class="fileira-cab"><span>BLACK FRIDAY EXCLUSIVA DE ALUNOS</span></div>
+        <div class="cartoes"><a class="cartao" href="/area/vitrine/oferta/400"><img alt="Comida com assinatura" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div></section>
       <section><div class="fileira-cab"><span>COMUNIDADE NO WHATSAPP</span></div><div><a href="https://chat.whatsapp.com/x"><img alt="grupo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div></section>
       </body></html>`
   }

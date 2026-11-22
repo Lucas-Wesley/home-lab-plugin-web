@@ -117,7 +117,12 @@ async function mostrarAula() {
   // E20: na escola, o bloco da escola sempre; o da aula, só na página de uma aula.
   let daEscola = null
   if (aula.escola) {
-    mostrarEscola(aba, { plataforma: aula.plataforma, nomePlataforma: aula.nomePlataforma, origem: new URL(aula.pagina).origin })
+    mostrarEscola(aba, {
+      plataforma: aula.plataforma,
+      nomePlataforma: aula.nomePlataforma,
+      origem: new URL(aula.pagina).origin,
+      ...(aula.ehAula && aula.cursoPadrao ? { cursoDaAula: aula.cursoPadrao, paginaDaAula: aula.pagina } : {}),
+    })
     if (!aula.ehAula) return
     // O curso e a ordem da aula vêm do mapa da escola, se ela já foi mapeada.
     const { lote } = await chrome.storage.local.get('lote')
@@ -279,6 +284,7 @@ async function mostrarLote(aba, aula) {
 // texto da página e "trilha: true" (cada curso vira uma trilha no grupo da escola).
 const desmarcados = new Set()
 let nomeDaEscola = ''
+let cursoDestaAula = ''
 function desenharEscola(lote) {
   const e = lote?.tipo === 'escola' ? lote : null
   const info = $('escola-info')
@@ -290,6 +296,10 @@ function desenharEscola(lote) {
   for (const id of ['escola-mapear', 'escola-baixar', 'escola-parar', 'escola-continuar', 'escola-refazer', 'escola-esquecer']) $(id).hidden = true
   $('escola-abrir').hidden = true
   $('escola-mapear').textContent = 'Mapear a escola'
+  // E24: numa aula, o curso dela entra no mapa pela lista do lado (o cartão de alguns cursos na vitrine
+  // não leva a um módulo e o "Mapear a escola" não o vê).
+  $('escola-este').hidden = !cursoDestaAula || !!lote?.rodando
+  $('escola-este').textContent = `Mapear este curso (${cursoDestaAula})`
   const listar = (itens) => {
     for (const t of itens) {
       const li = document.createElement('li')
@@ -322,7 +332,7 @@ function desenharEscola(lote) {
   }
   if (e.fase === 'mapeado') {
     info.textContent = resumo.length
-      ? `Achei ${resumo.length} cursos e ${achadas} aulas. Marque os que quer baixar: cada curso vira uma trilha no grupo ${nomeDaEscola}.`
+      ? `Achei ${resumo.length} ${resumo.length === 1 ? 'curso' : 'cursos'} e ${achadas} aulas. Marque os que quer baixar: cada curso vira uma trilha no grupo ${nomeDaEscola}.`
       : 'Não achei aulas nos módulos: abra uma aula, confira se a lista do lado aparece e mapeie de novo.'
     for (const c of resumo) {
       const li = document.createElement('li')
@@ -365,6 +375,9 @@ function desenharEscola(lote) {
   $('escola-parar').hidden = !e.rodando
   $('escola-continuar').hidden = e.rodando || e.aulas.every((a) => a.estado === 'enviada' && !a.pdfsFalhos?.length)
   $('escola-esquecer').hidden = e.rodando
+  // E24: depois do download, mapear de novo (para cursos novos) sem precisar limpar.
+  $('escola-mapear').hidden = e.rodando
+  $('escola-mapear').textContent = 'Mapear de novo'
   // E23: passar de novo por todas as aulas (com o mapa salvo); a Trilha não duplica e refaz o vídeo que veio sem som.
   $('escola-refazer').hidden = e.rodando
   $('escola-abrir').hidden = !conta((a) => a.estado === 'enviada')
@@ -374,6 +387,7 @@ async function mostrarEscola(aba, info) {
   if (mostrarEscola.aberta) return
   mostrarEscola.aberta = true
   nomeDaEscola = info.nomePlataforma
+  cursoDestaAula = info.cursoDaAula || ''
   $('escola').hidden = false
   $('escola-nome').textContent = info.nomePlataforma
   const { lote, enderecos } = await chrome.storage.local.get(['lote', 'enderecos'])
@@ -386,6 +400,10 @@ async function mostrarEscola(aba, info) {
   $('escola-mapear').onclick = () => {
     desmarcados.clear()
     chrome.runtime.sendMessage({ tipo: 'mapearEscola', aba, plataforma: info.plataforma, origem: info.origem })
+  }
+  $('escola-este').onclick = () => {
+    desmarcados.clear()
+    chrome.runtime.sendMessage({ tipo: 'mapearCursoEscola', aba, plataforma: info.plataforma, origem: info.origem, url: info.paginaDaAula, curso: cursoDestaAula })
   }
   $('escola-baixar').onclick = async () => {
     const { lote: atual } = await chrome.storage.local.get('lote')
