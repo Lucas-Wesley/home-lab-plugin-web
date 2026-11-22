@@ -331,7 +331,7 @@ function desenharEscola(lote) {
       caixa.type = 'checkbox'
       caixa.checked = !desmarcados.has(c.nome)
       caixa.addEventListener('change', () => (caixa.checked ? desmarcados.delete(c.nome) : desmarcados.add(c.nome)))
-      rotulo.append(caixa, `${c.nome} · ${c.modulos} ${c.modulos === 1 ? 'módulo' : 'módulos'} · ${c.aulas} aulas`)
+      rotulo.append(caixa, `${c.nome} · ${c.modulos} ${c.modulos === 1 ? "módulo" : "módulos"} · ${c.aulas} ${c.aulas === 1 ? "aula" : "aulas"}`)
       li.append(rotulo)
       if (c.faltando.length) {
         const f = document.createElement('span')

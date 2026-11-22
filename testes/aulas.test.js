@@ -108,3 +108,13 @@ test('E20: o mapa da escola junta os módulos de cada curso, sem repetir aula', 
   ])
   assert.equal(A.aulasDoMapa(mapa)[3].modulo, 'Preparos grelhados')
 })
+
+test('E20: a aula que entrou pela caixa "→ módulo" volta para o módulo dela', () => {
+  const mapa = {}
+  // Na página do módulo A, a caixa "→ GUIA DA PRAÇA PRONTA - PDF" leva à aula 88 (lida como aula de A).
+  A.acrescentarAoMapa(mapa, 'Métodos', [{ modulo: 'Partida limpa - Guisados', aulas: [{ url: 'u86', titulo: 'Guisado' }, { url: 'u88', titulo: 'GUIA DA PRAÇA PRONTA - PDF' }] }])
+  // Na página do módulo Guia, a aula 88 de verdade.
+  A.acrescentarAoMapa(mapa, 'Métodos', [{ modulo: 'Guia da praça pronta - PDF', aulas: [{ url: 'u88', titulo: 'Guia da praça pronta - PDF' }] }])
+  const m = mapa.cursos[0].modulos.map((x) => [x.nome, x.aulas.map((a) => a.url)])
+  assert.deepEqual(JSON.parse(JSON.stringify(m)), [['Partida limpa - Guisados', ['u86']], ['Guia da praça pronta - PDF', ['u88']]])
+})

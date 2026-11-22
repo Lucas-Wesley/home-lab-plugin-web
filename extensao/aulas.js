@@ -212,8 +212,21 @@
     let c = mapa.cursos.find((x) => x.nome === curso)
     if (!c) mapa.cursos.push((c = { nome: curso, modulos: [] }))
     let novas = 0
+    const igual = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
     for (const g of grupos || []) {
       const nome = nomeBonito(g.modulo) || nomeBonito(moduloPadrao) || curso
+      // A aula que entrou antes pela caixa "→ <este módulo>" (título = o nome do módulo, noutro módulo) vem para cá.
+      for (const a of g.aulas || []) {
+        if (!a.url || !mapa.vistas[a.url]) continue
+        for (const cc of mapa.cursos)
+          for (const m of cc.modulos) {
+            const i = m.aulas.findIndex((x) => x.url === a.url)
+            if (i >= 0 && m.nome !== nome && igual(m.aulas[i].titulo, nome)) {
+              m.aulas.splice(i, 1)
+              delete mapa.vistas[a.url]
+            }
+          }
+      }
       const aulas = (g.aulas || []).filter((a) => a.url && !mapa.vistas[a.url])
       if (!aulas.length && c.modulos.some((m) => m.nome === nome)) continue
       let m = c.modulos.find((x) => x.nome === nome)

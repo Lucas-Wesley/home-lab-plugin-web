@@ -96,6 +96,7 @@ const AULAS_DA_ESCOLA = {
   5: { titulo: 'Bases pronta = economia de tempo', video: 'youtube:AAAAAAAAAA5', lista: '1. Bases pronta = economia de tempo' },
   6: { titulo: 'Tablete de cebola', video: 'youtube:AAAAAAAAAA6', lista: '2. Tablete de cebola' },
   7: { titulo: 'Molho de tomate base', video: 'hls', lista: '1. Molho de tomate base' },
+  8: { titulo: 'Como usar o Enzap', video: 'youtube:AAAAAAAAAA8' },
 }
 
 function listaDoModulo(nome, aulas) {
@@ -110,23 +111,25 @@ const LATERAL_PRACAS = `<div class="lateral">${listaDoModulo('PRAÇA PRONTA - BA
 
 function lateralDoModulo(id) {
   const m = MODULOS_DA_ESCOLA[id]
+  if (id === 300) return { lateral: `<div class="lateral">${listaDoModulo('INSTRUÇÕES', [8])}</div>`, produto: 'Enzap' }
   if (!m) return { lateral: LATERAL_PRACAS, produto: 'Praças - CDPS' }
-  const vizinho = (n, seta) => (n ? `<a class="caixa" href="/area/conteudo/modulo/${n}"><span>${seta}</span><span>${MODULOS_DA_ESCOLA[n].nome}</span></a>` : '')
+  const vizinho = (n, seta) => (n ? `<a class="caixa" href="/area/conteudo/aula/${MODULOS_DA_ESCOLA[n].aulas[0]}"><span>${seta}</span><span>${MODULOS_DA_ESCOLA[n].nome}</span></a>` : '')
   return {
     produto: m.produto,
     lateral: `<div class="lateral"><div class="caixa"><div>Meu progresso - 5.9%</div><div>1 de 17 aula</div></div>${vizinho(m.anterior, '←')}${listaDoModulo(m.nome, m.aulas)}${vizinho(m.proximo, '→')}</div>`,
   }
 }
 
-const moduloDaAula = (n) => (n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
+const moduloDaAula = (n) => (n === 8 ? 300 : n >= 5 ? 201 : Number(Object.entries(MODULOS_DA_ESCOLA).find(([, m]) => m.aulas.includes(n))[0]))
 
 function paginaDaEscola(caminho) {
   const topo = '<header><a href="/area/vitrine/home">Pagina inicial</a><a>SUPORTE</a><button aria-expanded="false">Perfil</button></header>'
   if (caminho === '/area/vitrine/home') {
     const cartao = (n, alt) => `<a class="cartao" href="/area/conteudo/modulo/${n}"><img alt="${alt}" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a>`
     return `<!doctype html><html><head><title>Chef Enzo Neto</title></head><body>${topo}
-      <section><div class="fileira-cab"><span class="ponto"></span><span>COZINHA DE PANELA SÓ - COMECE POR AQUI</span></div>
-        <div class="cartoes">${cartao(101, 'Adequando o CDPS à sua família')}${cartao(102, 'Organização do ambiente e habilidades básicas')}</div></section>
+      <section><div class="fileira-cab"><img class="ponto" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><span>COZINHA DE PANELA SÓ - COMECE POR AQUI</span></div>
+        <div class="cartoes">${cartao(100, 'O método CDPS')}${cartao(101, 'Adequando o CDPS à sua família')}${cartao(102, 'Organização do ambiente e habilidades básicas')}</div></section>
+      <section><div class="cartoes">${cartao(300, 'Instruções')}</div></section>
       <section><div class="fileira-cab"><span>AS PRAÇAS DA COZINHA PRÁTICA</span><button>‹</button><button>›</button></div>
         <div class="carrossel"><div class="trilho">${cartao(201, '')}${cartao(201, '')}</div></div></section>
       <section><div class="fileira-cab"><span>COMUNIDADE NO WHATSAPP</span></div><div><a href="https://chat.whatsapp.com/x"><img alt="grupo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div></section>

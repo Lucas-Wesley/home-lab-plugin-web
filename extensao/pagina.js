@@ -438,7 +438,8 @@
   function nomeDaFileira(cartao) {
     for (let atual = cartao, n = 0; atual && atual !== document.body && n < 10; atual = atual.parentElement, n++) {
       for (let irmao = atual.previousElementSibling, k = 0; irmao && k < 3; irmao = irmao.previousElementSibling, k++) {
-        if (irmao.querySelector('a[href*="/area/conteudo/"], img')) break // outra fileira de cartões
+        // Um cartão (link para o conteúdo ou link com imagem) é a fileira de cima; o ícone (●) do título não.
+        if (irmao.matches('a[href]') || irmao.querySelector('a[href*="/area/conteudo/"], a[href] img')) break
         const t = textoDe(irmao).replace(/[‹›<>«»←→]/g, '').trim()
         if (t.length > 2 && t.length < 100 && /\p{L}{3}/u.test(t)) return t
       }
@@ -459,7 +460,8 @@
       const url = enderecoDe(a)
       if (!url || vistos.has(url) || !LINK_MODULO_ESCOLA.test(new URL(url).pathname)) continue
       vistos.add(url)
-      const nome = nomeDaFileira(a) || 'Escola'
+      // Fileira sem nome lido não se junta à outra sem nome: cada bloco de cartões é um curso.
+      const nome = nomeDaFileira(a) || `Curso ${fileiras.length + 1}`
       let f = fileiras.find((x) => x.nome === nome)
       if (!f) fileiras.push((f = { nome, modulos: [] }))
       f.modulos.push({ url, nome: nomeDoCartao(a) })
@@ -486,10 +488,17 @@
           }
         }
       }
-      return { bloco: atual, modulo: nome || nomeEm(atual), esperado: parseInt(textoProprio(contagem), 10) || 0 }
+      const filho = [...atual.children].find((c) => c.contains(link))
+      const navegacao = [...atual.children].some(
+        (c) => c !== filho && c.querySelector('a[href*="/area/conteudo/aula/"]') && [...c.querySelectorAll('*')].some((el) => CONTAGEM.test(textoProprio(el)) && !el.closest('a[href]')),
+      )
+      if (PROGRESSO_ESCOLA.test(nome)) nome = ''
+      return { bloco: atual, modulo: nome || nomeEm(atual), esperado: parseInt(textoProprio(contagem), 10) || 0, navegacao }
     }
-    return { bloco: null, modulo: '', esperado: 0 }
+    return { bloco: null, modulo: '', esperado: 0, navegacao: false }
   }
+  // "Meu progresso - 41.2% · 7 de 17 aula": a caixa do progresso, não um módulo.
+  const PROGRESSO_ESCOLA = /^meu progresso\b/i
 
   // gruposDeAulas: os links de aula da página (visíveis ou na sanfona fechada), agrupados pelo módulo.
   function gruposDeAulas() {
@@ -500,8 +509,9 @@
       if (!url || vistos.has(url) || !LINK_AULA_ESCOLA.test(new URL(url).pathname)) continue
       const titulo = semNumero(tituloDoLink(a))
       if (!titulo || titulo.length > 200) continue
+      const { bloco, modulo, esperado, navegacao } = moduloDoLink(a)
+      if (navegacao) continue // a caixa "← / →" que leva a outro módulo
       vistos.add(url)
-      const { bloco, modulo, esperado } = moduloDoLink(a)
       let g = grupos.find((x) => x.bloco === bloco && x.modulo === modulo)
       if (!g) grupos.push((g = { bloco, modulo, esperado, aulas: [] }))
       g.aulas.push({ url, titulo })

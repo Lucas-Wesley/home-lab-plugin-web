@@ -358,55 +358,59 @@ test('no Chef Enzo Neto, o popup mapeia a escola pela vitrine e manda cada aula,
   await expect(popup.locator('#escola-nome')).toHaveText('Chef Enzo Neto')
   await expect(popup.locator('#aula')).toBeHidden()
   await popup.getByRole('button', { name: 'Mapear a escola' }).click()
-  await expect(popup.locator('#escola-info')).toContainText('Achei 2 cursos e 7 aulas', { timeout: 60000 })
+  await expect(popup.locator('#escola-info')).toContainText('Achei 3 cursos e 8 aulas', { timeout: 60000 })
   await expect(popup.locator('#escola-cursos li')).toHaveText([
     'Cozinha de panela só - Comece por aqui · 3 módulos · 4 aulas',
+    'Curso 2 · 1 módulo · 1 aula',
     'As praças da cozinha prática · 2 módulos · 3 aulas',
   ])
   const { lote } = await context.servico.evaluate(() => chrome.storage.local.get('lote'))
   const modulos = (c) => lote.mapa.cursos[c].modulos.map((m) => [m.nome, m.aulas.map((a) => a.titulo)])
+  // As caixas "← / →" (que levam à primeira aula do módulo vizinho) não viram aula.
   expect(modulos(0)).toEqual([
+    ['O caminho da praticidade', ['Bases prontas agilizam']],
     ['Organização da família e da rotina', ['Obrigatório em toda casa', '1 - 2 pessoas em casa']],
     ['Praça pronta - Habilidades básicas', ['Guia da praça pronta - PDF']],
-    ['O caminho da praticidade', ['Bases prontas agilizam']],
   ])
-  expect(modulos(1)).toEqual([
+  expect(modulos(1)).toEqual([['Instruções', ['Como usar o Enzap']]])
+  expect(modulos(2)).toEqual([
     ['Praça pronta - Bases e temperos', ['Bases pronta = economia de tempo', 'Tablete de cebola']],
     ['Praça pronta - Molho tomate', ['Molho de tomate base']],
   ])
   // Nada foi para a Trilha ainda: o mapa só lê.
   expect(apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas')).toHaveLength(0)
 
+  await popup.locator('#escola-cursos li', { hasText: 'Curso 2' }).getByRole('checkbox').uncheck()
   await popup.getByRole('button', { name: 'Baixar as aulas marcadas' }).click()
   await expect(popup.locator('#escola-info')).toContainText('7 de 7 · 6 vídeos na Trilha · 1 só texto', { timeout: 120000 })
   await expect(popup.locator('#escola-link')).toHaveAttribute('href', `${apps.endereco}/#/trilhas/grupo/Chef%20Enzo%20Neto`)
   const pedidos = apps.recebidos.filter((r) => r.caminho === '/api/cursos/aulas').map((r) => r.corpo)
   expect(pedidos.map((p) => [p.curso, p.ordem, p.titulo])).toEqual([
-    ['Cozinha de panela só - Comece por aqui', 1, 'Obrigatório em toda casa'],
-    ['Cozinha de panela só - Comece por aqui', 2, '1 - 2 pessoas em casa'],
-    ['Cozinha de panela só - Comece por aqui', 3, 'Guia da praça pronta - PDF'],
-    ['Cozinha de panela só - Comece por aqui', 4, 'Bases prontas agilizam'],
+    ['Cozinha de panela só - Comece por aqui', 1, 'Bases prontas agilizam'],
+    ['Cozinha de panela só - Comece por aqui', 2, 'Obrigatório em toda casa'],
+    ['Cozinha de panela só - Comece por aqui', 3, '1 - 2 pessoas em casa'],
+    ['Cozinha de panela só - Comece por aqui', 4, 'Guia da praça pronta - PDF'],
     ['As praças da cozinha prática', 1, 'Bases pronta = economia de tempo'],
     ['As praças da cozinha prática', 2, 'Tablete de cebola'],
     ['As praças da cozinha prática', 3, 'Molho de tomate base'],
   ])
   expect(pedidos.every((p) => p.plataforma === 'enzoneto' && p.trilha === true)).toBe(true)
   // O YouTube embutido vai como embed, com a escola como Referer; o player em iframe, pelo HLS.
-  expect(pedidos[0].embed).toBe('https://www.youtube.com/embed/AAAAAAAAAA1?controls=0&rel=0')
-  expect(pedidos[0].referer).toBe('https://aluno.enzoneto.com/')
-  expect(pedidos[0].manifesto).toBeUndefined()
+  expect(pedidos[1].embed).toBe('https://www.youtube.com/embed/AAAAAAAAAA1?controls=0&rel=0')
+  expect(pedidos[1].referer).toBe('https://aluno.enzoneto.com/')
+  expect(pedidos[1].manifesto).toBeUndefined()
   expect(pedidos[6].manifesto).toBe('https://player.escola-teste.com/hls/7/master.m3u8')
   expect(pedidos[6].referer).toBe('https://player.escola-teste.com/')
   expect(pedidos[4].modulo).toBe('Praça pronta - Bases e temperos')
   // O texto da página, sem as listas de afiliados; a aula sem vídeo leva só o texto e o PDF.
-  expect(pedidos[0].texto).toContain('Vamos começar a aula Obrigatório em toda casa')
-  expect(pedidos[0].texto).toContain('- Porcionar as proteínas antes de grelhar.')
-  expect(pedidos[0].texto).not.toMatch(/afiliados|MERCADO LIVRE|LINK UTENS|mercadolivre/i)
-  expect(pedidos[0].texto).not.toContain('1 - 2 pessoas em casa')
-  expect(pedidos[2].embed).toBeUndefined()
-  expect(pedidos[2].manifesto).toBeUndefined()
-  expect(pedidos[2].texto).toContain('O guia completo da praça pronta')
-  expect(pedidos[2].texto).toContain('[Baixar o PDF](https://cdn.escola-teste.com/guia-praca-pronta.pdf)')
+  expect(pedidos[1].texto).toContain('Vamos começar a aula Obrigatório em toda casa')
+  expect(pedidos[1].texto).toContain('- Porcionar as proteínas antes de grelhar.')
+  expect(pedidos[1].texto).not.toMatch(/afiliados|MERCADO LIVRE|LINK UTENS|mercadolivre|PRATICIDADE|HABILIDADES/i)
+  expect(pedidos[1].texto).not.toContain('1 - 2 pessoas em casa')
+  expect(pedidos[3].embed).toBeUndefined()
+  expect(pedidos[3].manifesto).toBeUndefined()
+  expect(pedidos[3].texto).toContain('O guia completo da praça pronta')
+  expect(pedidos[3].texto).toContain('[Baixar o PDF](https://cdn.escola-teste.com/guia-praca-pronta.pdf)')
 })
 
 test('no Chef Enzo Neto, a aula aberta vai com o vídeo embutido, o texto e a trilha do curso (E20)', async ({ page, context, apps, extensao }) => {
