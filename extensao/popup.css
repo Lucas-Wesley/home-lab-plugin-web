@@ -183,6 +183,18 @@ button {
   flex: 1;
 }
 
+/* Os destinos da página, um por linha (E27): com três lado a lado, o texto quebrava. */
+#acoes {
+  flex-direction: column;
+  gap: 6px;
+}
+
+#acoes button {
+  flex: none;
+  height: 36px;
+  white-space: nowrap;
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: default;

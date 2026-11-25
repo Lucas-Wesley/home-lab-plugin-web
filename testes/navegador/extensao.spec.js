@@ -5,20 +5,33 @@ const botao = (page) => page.locator('homelab-envio button')
 const ultimaAba = (context) =>
   context.servico.evaluate(async () => (await chrome.tabs.query({})).reduce((a, b) => (b.id > a.id ? b : a)))
 
-test('no vídeo do YouTube, o botão manda o link à Entrada da Trilha, no automático (E13)', async ({ page, apps }) => {
+test('no vídeo do YouTube, o botão manda o link ao Cortes (E27)', async ({ page, apps }) => {
   await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1&t=42s')
   await expect(botao(page)).toBeVisible()
-  await expect(botao(page)).toHaveAttribute('aria-label', 'Mandar à Trilha')
+  await expect(botao(page)).toHaveAttribute('aria-label', 'Mandar ao Cortes')
 
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Entrada: a IA divide e sugere as trilhas')
-  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/entrada/5`)
-  const pedido = apps.recebidos.find((r) => r.caminho === '/api/entrada')
-  expect(pedido.corpo).toEqual({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', automatico: true })
+  await expect(page.locator('homelab-envio .texto')).toHaveText('No Cortes: legenda e mapa de assuntos a caminho')
+  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/video/9`)
+  const pedido = apps.recebidos.find((r) => r.caminho === '/api/videos')
+  expect(pedido.corpo).toEqual({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })
 
-  // De novo: a Trilha devolve o que já tem.
+  // De novo: o Cortes já tem.
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Já está na Entrada da Trilha')
+  await expect(page.locator('homelab-envio .texto')).toHaveText('Já está no Cortes')
+})
+
+test('a miniatura de outro vídeo tem o botão Cortes, que manda sem abrir o vídeo (E27)', async ({ page, apps }) => {
+  await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+  const mini = page.locator('homelab-miniatura button')
+  await page.locator('#mini').hover()
+  await expect(mini).toBeVisible()
+  await mini.click()
+  await expect(mini).toContainText('No Cortes')
+  expect(page.url()).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+  expect(apps.recebidos.find((r) => r.caminho === '/api/videos').corpo).toEqual({ url: 'https://www.youtube.com/watch?v=bbbbbbbbbbb' })
+  await mini.click()
+  await expect(mini).toContainText('Já está')
 })
 
 test('o YouTube troca de página sem recarregar: o botão aparece e some com o vídeo', async ({ page }) => {
@@ -96,7 +109,7 @@ test('qualquer página vai ao Acervo pelo popup, como artigo (E10)', async ({ pa
 test('o popup mostra o histórico, inclusive o que falhou', async ({ page, context, extensao }) => {
   await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
   await botao(page).click()
-  await expect(page.locator('homelab-envio .texto')).toHaveText('Na Entrada: a IA divide e sugere as trilhas')
+  await expect(page.locator('homelab-envio .texto')).toHaveText('No Cortes: legenda e mapa de assuntos a caminho')
 
   // O Flashcards fora do ar: o erro aparece no botão e no histórico.
   await context.servico.evaluate(async () => {
@@ -135,8 +148,8 @@ test('o nome aparece ao abrir o vídeo e o popup também envia', async ({ page, 
   await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
   await expect(popup.getByText('Nesta página')).toBeVisible()
   await expect(popup.locator('#aqui-titulo')).toHaveText('Origem da laranja')
-  // No vídeo, a Trilha primeiro, depois o Cortes (E26) e o Acervo.
-  await expect(popup.locator('#acoes button')).toHaveText(['Mandar à Trilha', 'Mandar ao Cortes', 'Mandar ao Acervo'])
+  // No vídeo, o Cortes primeiro (E27), depois a Trilha e o Acervo.
+  await expect(popup.locator('#acoes button')).toHaveText(['Mandar ao Cortes', 'Mandar à Trilha', 'Mandar ao Acervo'])
   await popup.getByRole('button', { name: 'Mandar ao Acervo' }).click()
 
   await expect(texto).toHaveText('Na fila do Acervo')

@@ -79,7 +79,8 @@ function appsFalsos() {
 }
 
 const paginaDoYouTube = (titulo) => `<!doctype html><html><head><title>${titulo} - YouTube</title></head><body><h1>${titulo}</h1>
-  <a id="outro" href="#">outro vídeo</a></body></html>`
+  <a id="outro" href="#">outro vídeo</a>
+  <div class="lado"><a id="mini" href="/watch?v=bbbbbbbbbbb"><img alt="" width="168" height="94" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a><h3 id="video-title" title="Flow #676 - Breno Altman">Flow #676 - Breno Altman</h3></div></body></html>`
 
 export const PAGINA_COM_EXEMPLOS = `<!doctype html><html><head><title>Shoot Up | O que significa? - Blog de Inglês</title></head><body>
   <h1>Shoot Up</h1>

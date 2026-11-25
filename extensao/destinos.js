@@ -87,7 +87,7 @@
     }
   }
 
-  // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai à Trilha (E13);
+  // destinoDaPagina diz se a página tem botão e para qual app: o vídeo do YouTube vai ao Cortes (E27; antes, à Trilha, E13);
   // um PDF vai à Biblioteca (E12); qualquer outra página com frases de exemplo (temExemplos) vai ao Flashcards.
   // Na página de um dos cursos (E14), o botão é o da coleta, com o endereço base do curso: trocar de aula
   // sem recarregar não reinicia o botão.
@@ -95,7 +95,7 @@
     const curso = cursoDaPagina(endereco)
     if (curso) return { app: 'coleta', ...curso }
     const video = videoDoYouTube(endereco)
-    if (video) return { app: 'trilha', url: `https://www.youtube.com/watch?v=${video}` }
+    if (video) return { app: 'cortes', url: `https://www.youtube.com/watch?v=${video}` }
     let u
     try {
       u = new URL(endereco)
@@ -115,7 +115,7 @@
     const video = videoDoYouTube(endereco)
     if (video) {
       const url = `https://www.youtube.com/watch?v=${video}`
-      return [{ app: 'trilha', url }, { app: 'cortes', url }, { app: 'acervo', url }]
+      return [{ app: 'cortes', url }, { app: 'trilha', url }, { app: 'acervo', url }]
     }
     let u
     try {

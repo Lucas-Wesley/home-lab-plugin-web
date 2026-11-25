@@ -25,7 +25,7 @@ test('acha o vídeo do YouTube nos links que o Acervo aceita', () => {
 
 test('cada página vai para o seu app, com o link limpo', () => {
   assert.deepEqual(json(D.destinoDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1&t=9', false)), {
-    app: 'trilha',
+    app: 'cortes',
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   })
   assert.deepEqual(json(D.destinoDaPagina('https://blog.exemplo.com/shoot-up-o-que-significa/?utm_source=x&p=12&fbclid=y#audio', true)), {
@@ -39,10 +39,10 @@ test('cada página vai para o seu app, com o link limpo', () => {
   assert.equal(D.destinoDaPagina('chrome://extensions', true), null)
 })
 
-test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, à Trilha, ao Cortes ou ao Acervo (E10, E13, E26)', () => {
+test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, ao Cortes, à Trilha ou ao Acervo (E10, E13, E26, E27)', () => {
   assert.deepEqual(json(D.acoesDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=9')), [
-    { app: 'trilha', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     { app: 'cortes', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+    { app: 'trilha', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     { app: 'acervo', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   ])
   assert.deepEqual(json(D.acoesDaPagina('https://blog.exemplo.com/historia-do-cafe/?utm_source=x#topo')), [
