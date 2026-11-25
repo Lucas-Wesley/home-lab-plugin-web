@@ -436,11 +436,12 @@ async function iniciar() {
   $('flashcards').value = enderecos.flashcards
   $('biblioteca').value = enderecos.biblioteca
   $('trilha').value = enderecos.trilha
+  $('cortes').value = enderecos.cortes
   carregarBaralhos(s.baralho || '')
 
   $('baralho').addEventListener('change', () => chrome.storage.local.set({ baralho: $('baralho').value }))
   $('tipo').addEventListener('change', () => chrome.storage.local.set({ tipo: $('tipo').value }))
-  for (const app of ['acervo', 'flashcards', 'biblioteca', 'trilha']) {
+  for (const app of ['acervo', 'flashcards', 'biblioteca', 'trilha', 'cortes']) {
     $(app).addEventListener('change', async () => {
       const atuais = (await chrome.storage.local.get('enderecos')).enderecos || {}
       const valor = $(app).value.trim().replace(/\/+$/, '')

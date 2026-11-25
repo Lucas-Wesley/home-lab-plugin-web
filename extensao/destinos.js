@@ -8,6 +8,7 @@
     flashcards: 'https://flashcards.internal',
     biblioteca: 'https://biblioteca.internal',
     trilha: 'https://trilha.internal',
+    cortes: 'https://cortes.internal',
   }
 
   const APPS = {
@@ -15,6 +16,7 @@
     flashcards: { nome: 'Flashcards', acao: 'Fazer flashcards' },
     biblioteca: { nome: 'Biblioteca', acao: 'Mandar à Biblioteca' },
     trilha: { nome: 'Trilha', acao: 'Mandar à Trilha' },
+    cortes: { nome: 'Cortes', acao: 'Mandar ao Cortes' },
   }
 
   const HISTORICO_MAXIMO = 50
@@ -106,14 +108,14 @@
   }
 
   // acoesDaPagina: para onde a página (ou um link) pode ir, pelo popup ou pelo menu do botão direito
-  // (E10). O vídeo do YouTube vai à Trilha (a Entrada, E13) ou ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
+  // (E10). O vídeo do YouTube vai à Trilha (a Entrada, E13), ao Cortes (E26: o app do canal de cortes) ou ao Acervo; qualquer outra página vai ao Acervo, como artigo, ou ao
   // Flashcards. Um PDF vai só à Biblioteca, como livro (E12). O YouTube fora de um vídeo e o que não é
   // http(s) não vão a lugar nenhum.
   function acoesDaPagina(endereco, pdf = false) {
     const video = videoDoYouTube(endereco)
     if (video) {
       const url = `https://www.youtube.com/watch?v=${video}`
-      return [{ app: 'trilha', url }, { app: 'acervo', url }]
+      return [{ app: 'trilha', url }, { app: 'cortes', url }, { app: 'acervo', url }]
     }
     let u
     try {
@@ -142,6 +144,8 @@
     if (app === 'acervo') return { caminho: '/api/referencias', corpo: { url } }
     // A Trilha divide o vídeo e já sugere as trilhas sozinha (T46 de lá).
     if (app === 'trilha') return { caminho: '/api/entrada', corpo: { url, automatico: true } }
+    // O Cortes guarda o link e o operário do Mac mini puxa a legenda e o mapa de assuntos sozinho (K1/K2 de lá).
+    if (app === 'cortes') return { caminho: '/api/videos', corpo: { url } }
     if (app === 'biblioteca') return { caminho: '/api/books' } // o corpo é o próprio PDF, num formulário (servico.js)
     const baralho = ajustes.baralho === 'novo' ? '' : ajustes.baralho || ''
     return { caminho: '/api/links', corpo: { url, baralho_id: baralho, tipo: ajustes.tipo || 'basico' } }
@@ -161,6 +165,9 @@
         if (f.estado !== 'na_fila') return { estado: 'repetido', mensagem: 'Já está na Entrada da Trilha', abrir }
         return { estado: 'enviado', mensagem: 'Na Entrada: a IA divide e sugere as trilhas', abrir }
       }
+    } else if (app === 'cortes') {
+      if (status === 201) return { estado: 'enviado', mensagem: 'No Cortes: legenda e mapa de assuntos a caminho', abrir: `${base}/#/video/${dados.id}` }
+      if (status === 409 && dados?.id) return { estado: 'repetido', mensagem: 'Já está no Cortes', abrir: `${base}/#/video/${dados.id}` }
     } else if (app === 'biblioteca') {
       if (status === 201) return { estado: 'enviado', mensagem: 'Na Biblioteca', abrir: `${base}/#/livro/${encodeURIComponent(dados.id)}` }
       if (status === 409) return { estado: 'repetido', mensagem: 'Já está na Biblioteca', abrir: '' }

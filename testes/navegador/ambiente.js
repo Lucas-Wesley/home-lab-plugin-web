@@ -54,6 +54,12 @@ function appsFalsos() {
         vistos.add('entrada:' + dados.url)
         return responder(202, [{ id: 5, estado: ja ? 'pronta' : 'na_fila' }])
       }
+      // O Cortes (E26): 201 com o vídeo; o mesmo vídeo de novo, 409 com o id.
+      if (req.method === 'POST' && req.url === '/api/videos') {
+        if (vistos.has('cortes:' + dados.url)) return responder(409, { erro: 'Este vídeo já está na lista.', id: 9 })
+        vistos.add('cortes:' + dados.url)
+        return responder(201, { id: 9 })
+      }
       // Os cursos da Trilha (T50): a estimativa e a fila de downloads.
       if (req.method === 'POST' && req.url === '/api/cursos/estimar') return responder(200, { qualidade: '720p', duracao: 7254, tamanho_estimado: 400 * 2 ** 20, livre: 50 * 2 ** 30, cifrado: false })
       if (req.method === 'POST' && req.url === '/api/cursos/aulas') {
@@ -309,7 +315,7 @@ export const test = base.extend({
     await context.route('https://noticias.exemplo.com/**', (route) => route.fulfill({ contentType: 'text/html', body: ARTIGO }))
     let [servico] = context.serviceWorkers()
     if (!servico) servico = await context.waitForEvent('serviceworker')
-    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e, biblioteca: e, trilha: e } }), apps.endereco)
+    await servico.evaluate((e) => chrome.storage.local.set({ enderecos: { acervo: e, flashcards: e, biblioteca: e, trilha: e, cortes: e } }), apps.endereco)
     context.servico = servico
     await usar(context)
     await context.close()

@@ -135,8 +135,8 @@ test('o nome aparece ao abrir o vídeo e o popup também envia', async ({ page, 
   await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
   await expect(popup.getByText('Nesta página')).toBeVisible()
   await expect(popup.locator('#aqui-titulo')).toHaveText('Origem da laranja')
-  // No vídeo, a Trilha primeiro e o Acervo como segunda opção.
-  await expect(popup.locator('#acoes button')).toHaveText(['Mandar à Trilha', 'Mandar ao Acervo'])
+  // No vídeo, a Trilha primeiro, depois o Cortes (E26) e o Acervo.
+  await expect(popup.locator('#acoes button')).toHaveText(['Mandar à Trilha', 'Mandar ao Cortes', 'Mandar ao Acervo'])
   await popup.getByRole('button', { name: 'Mandar ao Acervo' }).click()
 
   await expect(texto).toHaveText('Na fila do Acervo')
@@ -469,4 +469,16 @@ test('no Chef Enzo Neto, a aula aberta vai com o vídeo embutido, o texto e a tr
   const pedido = apps.recebidos.find((r) => r.caminho === '/api/cursos/aulas').corpo
   expect(pedido).toMatchObject({ plataforma: 'enzoneto', curso: 'CDPS - Comece por aqui', trilha: true, embed: 'https://www.youtube.com/embed/AAAAAAAAAA1?controls=0&rel=0' })
   expect(pedido.texto).toContain('Vamos começar a aula')
+})
+
+test('pelo popup, o vídeo vai ao Cortes e abre a tela dele (E26)', async ({ page, context, apps, extensao }) => {
+  await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+  const aba = await ultimaAba(context)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${extensao}/popup.html?aba=${aba.id}`)
+  await popup.getByRole('button', { name: 'Mandar ao Cortes' }).click()
+  const texto = page.locator('homelab-envio .texto')
+  await expect(texto).toHaveText('No Cortes: legenda e mapa de assuntos a caminho')
+  await expect(page.locator('homelab-envio a')).toHaveAttribute('href', `${apps.endereco}/#/video/9`)
+  expect(apps.recebidos.find((r) => r.caminho === '/api/videos').corpo).toEqual({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })
 })

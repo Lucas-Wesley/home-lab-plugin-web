@@ -39,9 +39,10 @@ test('cada página vai para o seu app, com o link limpo', () => {
   assert.equal(D.destinoDaPagina('chrome://extensions', true), null)
 })
 
-test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, à Trilha ou ao Acervo (E10, E13)', () => {
+test('qualquer página vai ao Acervo ou ao Flashcards; o vídeo, à Trilha, ao Cortes ou ao Acervo (E10, E13, E26)', () => {
   assert.deepEqual(json(D.acoesDaPagina('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=9')), [
     { app: 'trilha', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+    { app: 'cortes', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     { app: 'acervo', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   ])
   assert.deepEqual(json(D.acoesDaPagina('https://blog.exemplo.com/historia-do-cafe/?utm_source=x#topo')), [
@@ -133,4 +134,21 @@ test('a Trilha recebe o vídeo na Entrada, no automático, e abre a fonte (E13)'
   })
   assert.equal(D.resultadoDaResposta('trilha', trilha, 202, [{ id: 3, estado: 'fragmentada' }]).estado, 'repetido')
   assert.equal(D.resultadoDaResposta('trilha', trilha, 400, { erro: 'mande o link' }).mensagem, 'mande o link')
+})
+
+test('o Cortes recebe o vídeo e abre a tela dele (E26)', () => {
+  assert.deepEqual(json(D.pedidoPara('cortes', 'u', {})), { caminho: '/api/videos', corpo: { url: 'u' } })
+  const cortes = 'https://cortes.internal/'
+  assert.deepEqual(json(D.resultadoDaResposta('cortes', cortes, 201, { id: 7 })), {
+    estado: 'enviado',
+    mensagem: 'No Cortes: legenda e mapa de assuntos a caminho',
+    abrir: 'https://cortes.internal/#/video/7',
+  })
+  assert.deepEqual(json(D.resultadoDaResposta('cortes', cortes, 409, { erro: 'Este vídeo já está na lista.', id: 7 })), {
+    estado: 'repetido',
+    mensagem: 'Já está no Cortes',
+    abrir: 'https://cortes.internal/#/video/7',
+  })
+  assert.equal(D.resultadoDaResposta('cortes', cortes, 400, { erro: 'Não achei um link do YouTube.' }).mensagem, 'Não achei um link do YouTube.')
+  assert.equal(D.ENDERECOS_PADRAO.cortes, 'https://cortes.internal')
 })
